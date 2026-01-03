@@ -1,0 +1,27 @@
+# --- Python Environment ---
+# Ignore the virtual environment folder
+venv/
+env/
+ENV/
+
+# --- Python Cache ---
+# Ignore compiled python files and cache folders
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Streamlit Files ---
+# Ignore Streamlit's local configuration and credentials
+.streamlit/
+
+# --- Operating System Files ---
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+# macOS folder attributes
+.DS_Store
+
+# --- Project Specific ---
+# Ignore local environment variables (if you ever add a .env file for keys)
+.env
