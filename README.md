@@ -1,5 +1,3 @@
-I understand. I will provide the complete README.md content in a single, clean Markdown block so you can copy it entirely in one go.Markdown# 🏥 Cardiac Service Strategy Lab: Resolving the Bed-Day Paradox
-
 ## 🎯 The Problem This Solves
 Many surgical services face a "Bed-Day Choke." When management increases surgical slots to clear a backlog, they often see an unexpected rise in **day-of-surgery cancellations**. This happens because the model lacks the post-operative bed capacity to absorb the increased throughput. 
 
