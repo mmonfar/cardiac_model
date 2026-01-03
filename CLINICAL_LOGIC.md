@@ -1,4 +1,4 @@
-Here is the full content for CLINICAL_LOGIC.md. I have formatted it specifically for GitHub so that the math and tables render clearly for any clinical or technical reviewer.Markdown# 🩺 Clinical Logic & Validation Specification
+🩺 Clinical Logic & Validation Specification
 
 This document outlines the clinical assumptions, mathematical models, and prioritization heuristics used in the Cardiac Service Strategy Lab.
 
