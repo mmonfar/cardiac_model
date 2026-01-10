@@ -39,6 +39,9 @@ with st.sidebar:
             d3 = st.slider("Cat 3", 0, 100, 20)
             d4 = st.slider("Cat 4", 0, 100, 30)
             d5 = max(0, 100 - (d1+d2+d3+d4))
+            st.info(f"🟢 **Cat 5 (Stable/Routine): {d5}%**")
+            if (d1+d2+d3+d4) > 100:
+                st.error("Total mix exceeds 100%! Please adjust sliders.")
 
         with st.expander("⏱️ Category LOS (Avg Days)", expanded=False):
             l1 = st.number_input("Cat 1 Stay", value=22)
