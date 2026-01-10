@@ -75,27 +75,29 @@ pip install -r requirements.txt
 
 # 3. Launch the dashboard
 streamlit run app.py
+```bash
 
 
 ## 📝 Assumptions & Logic
 
-- **Nursing Ratios**  
-  Staffing is calculated at **4.5 FTE per bed** to maintain 24/7 safe coverage.
+**Nursing Ratios**  
+Staffing is calculated at 4.5 FTE per bed to maintain 24/7 safe coverage.
 
-- **Priority Logic**  
-  Admissions are prioritized by **Clinical Category (1–5)** first, then by **waitlist age**.
+**Priority Logic**  
+Admissions are prioritized by Clinical Category (1–5) first, then by waitlist age.
 
-- **Bed Buffers**  
-  Scenarios can be tested with **safety buffers** (beds held empty for emergency arrivals).
+**Bed Buffers**  
+Scenarios can be tested with safety buffers (beds held empty for emergency arrivals).
 
 ---
 
 ## 📂 Project Structure
 
-```text
-app.py      # User interface, sidebar management, session state
-engine.py   # Simulation logic, patient aging, AI solver
-visuals.py  # Plotly charts, ward maps, metric cards
+app.py  
+engine.py  
+visuals.py
+
+---
 
 ## 🛠️ Configuration Snippets
 
