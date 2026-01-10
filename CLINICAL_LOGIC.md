@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # 🩺 Clinical Logic & Validation Specification
+=======
+🩺 Clinical Logic & Validation Specification
+>>>>>>> 90270b11f04eca2e659494c75dc264690f25e4b9
 
 This document outlines the clinical assumptions, mathematical models, and prioritization heuristics used in the Cardiac Service Strategy Lab.
 
@@ -42,7 +46,11 @@ The admission engine mimics the multidisciplinary team (MDT) decision-making pro
 
 ---
 
+<<<<<<< HEAD
 ## 4. Operational "Bed-Choke" Logic
 A surgery is logged as a **"Cancellation"** when theater slots are available but effective bed capacity is zero.
 - **Effective Capacity:** $Total Beds - Safety Buffer$
 - **The Buffer:** Represents beds reserved for emergency arrivals. Without this, the model assumes 100% efficiency, which is clinically unsafe.
+=======
+4. Operational "Bed-Choke" LogicA surgery is logged as a "Cancellation" when theater slots are available but effective bed capacity is zero.Effective Capacity = $Total\ Beds - Safety\ Buffer$The Safety Buffer represents beds reserved for emergency non-elective admissions (e.g., emergency department arrivals).5. Metrics & Stability ScoringThe Stability Score (%) evaluates the health of the configuration:Throughput: Success in reducing the 26-week legacy count.Efficiency: Penalization for every "Bed-Choke" cancellation.A high stability score indicates a "Balanced System" where theater throughput is perfectly matched to ward discharge rates.
+>>>>>>> 90270b11f04eca2e659494c75dc264690f25e4b9
