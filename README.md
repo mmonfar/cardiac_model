@@ -75,7 +75,7 @@ pip install -r requirements.txt
 
 # 3. Launch the dashboard
 streamlit run app.py
-```bash
+```
 
 
 ## 📝 Assumptions & Logic
