@@ -63,24 +63,50 @@ def render_ward_ops(week_data, total_capacity):
                 </div>""", unsafe_allow_html=True)
                 
     with c2:
-        st.subheader(f"🛌 Floor Map View ({total_capacity} Beds)")
-        ward_state = week_data['ward_state']
+        # We assume 10 is the physical baseline of the unit
+        PHYSICAL_BEDS = 10
+        display_beds = max(PHYSICAL_BEDS, total_capacity)
         
-        high_acuity = len([p for p in ward_state if p['cat'] <= 2])
+        st.subheader(f"🛌 Floor Map View ({total_capacity} Active Beds)")
+        ward_state = week_data.get('ward_state', [])
+        
+        # High Acuity Warning
+        high_acuity = len([p for p in ward_state if p.get('cat', 5) <= 2])
         if high_acuity > (total_capacity * 0.6):
             st.warning(f"🚨 **High Acuity Alert:** {high_acuity} beds are Cat 1/2. Staffing ratio 1:1 required.")
             
-        cols = st.columns(6)
-        for i in range(total_capacity):
-            with cols[i % 6]:
+        cols = st.columns(5) # 5 columns looks cleaner for 10+ beds
+        for i in range(display_beds):
+            with cols[i % 5]:
+                # CASE 1: Bed is occupied by a patient
                 if i < len(ward_state):
                     p = ward_state[i]
-                    color = COLOR_MAP[f"Cat {p['cat']}"]
-                    st.markdown(f"""<div style="background-color:{color}; padding:10px; border-radius:5px; color:white; text-align:center; border:2px solid white; height:100px;">
-                        <small>BED {i+1}</small><br><b>C{p['cat']}</b><br><small>{int(p['days_remaining'])}d left</small></div>""", unsafe_allow_html=True)
+                    color = COLOR_MAP.get(f"Cat {p['cat']}", '#E0E0E0')
+                    st.markdown(f"""
+                        <div style="background-color:{color}; padding:10px; border-radius:5px; color:white; text-align:center; border:2px solid white; height:100px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1);">
+                        <small>BED {i+1}</small><br><b>C{p['cat']}</b><br><small>{int(p['days_remaining'])}d left</small>
+                        </div>""", unsafe_allow_html=True)
+                
+                # CASE 2: Bed is "Active" (Open) but empty
+                elif i < total_capacity:
+                    st.markdown(f"""
+                        <div style="background-color:#eee; padding:10px; border-radius:5px; color:#aaa; text-align:center; border:1px dashed #ccc; height:100px;">
+                        <small>BED {i+1}</small><br><br><b style="color:#388E3C;">OPEN</b>
+                        </div>""", unsafe_allow_html=True)
+                
+                # CASE 3: Bed exists physically but is "Closed" (Unfunded/Unstaffed)
+                elif i < PHYSICAL_BEDS:
+                    st.markdown(f"""
+                        <div style="background-color:#f9f9f9; padding:10px; border-radius:5px; color:#ccc; text-align:center; border:1px solid #eee; height:100px; filter: grayscale(100%);">
+                        <small>BED {i+1}</small><br><br><b>CLOSED</b>
+                        </div>""", unsafe_allow_html=True)
+                
+                # CASE 4: Extra beds needed beyond physical footprint
                 else:
-                    st.markdown(f"""<div style="background-color:#eee; padding:10px; border-radius:5px; color:#aaa; text-align:center; border:1px dashed #ccc; height:100px;">
-                        <small>BED {i+1}</small><br><br>FREE</div>""", unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="background-color:#FFF3E0; padding:10px; border-radius:5px; color:#E65100; text-align:center; border:2px solid #FFB74D; height:100px;">
+                        <small>BED {i+1}</small><br><br><b>EXTRA</b>
+                        </div>""", unsafe_allow_html=True)
 
 def render_variance_analysis(params):
     """Transparency Tab: Comprehensive view of clinical and operational distributions."""

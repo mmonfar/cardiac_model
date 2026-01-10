@@ -121,6 +121,8 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
             active_count -= to_admit
 
         # G) LOGGING
+        # We only create the 'ward_state' list here. 
+        # The math above remains 100% vectorized NumPy.
         history.append({
             'week': week,
             'Cat 1': np.sum(backlog[:active_count, 0] == 1),
@@ -132,7 +134,9 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
             'occupancy': len(ward_days),
             'cancellations': cancellations,
             'admissions': admitted_counts,
-            'det_events': num_det
+            'det_events': num_det,
+            # Use list comprehension for the UI—it's fast enough for 1 record/week
+            'ward_state': [{'cat': 2, 'days_remaining': d} for d in ward_days] 
         })
         
     return pd.DataFrame(history)

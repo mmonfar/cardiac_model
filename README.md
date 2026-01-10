@@ -1,64 +1,113 @@
-<<<<<<< HEAD
 # 🏥 Cardiac Service Strategy Lab (v2.0)
 
-An AI-powered decision support tool designed to resolve the disconnect between **Theater Planning** and **Bed Management**. 
+An AI-powered decision support tool designed to resolve the disconnect between **Theater Planning** and **Bed Management**.
 
-=======
->>>>>>> 90270b11f04eca2e659494c75dc264690f25e4b9
+---
+
 ## 🎯 The Problem This Solves
-Many surgical services face a "Bed-Day Choke." Increasing surgical slots to clear a backlog often leads to **day-of-surgery cancellations** because the ward cannot absorb the throughput. This tool uses stochastic simulation to prove that beds—not just theater time—are the primary lever for clearing 26-week clinical breaches.
+
+Many surgical services face a **“Bed-Day Choke.”** Increasing surgical slots to clear a backlog often leads to **day-of-surgery cancellations** because the ward cannot absorb the throughput.
+
+This tool uses **stochastic simulation** to demonstrate that beds — not just theater time — are the primary lever for clearing **26-week clinical breaches**.
 
 ---
 
 ## 🌟 Key Features
 
 ### 1. The AI Strategy Solver
-The model searches for the optimal solution using a heuristic optimization engine. It identifies the minimum combination of **Beds** and **Theater Slots** required to hit a "Zero Breach" state by a specific target week.
+
+The model searches for the optimal solution using a **heuristic optimization engine**. It identifies the *minimum viable combination* of:
+
+- **Beds**
+- **Theater Slots**
+
+required to achieve a **Zero Breach** state by a specified target week.
+
+---
 
 ### 2. Dual-Pathway Clinical Engine
-Unlike static spreadsheets, this model treats patients as dynamic clinical entities:
-- **The 10% Legacy Clock:** 10% of patients follow a "hard-breach" pathway, automatically escalating to Category 1 at 26 weeks.
-- **Stochastic Deterioration:** The remaining patients decline based on a **Poisson-distributed** probability matrix.
-- **Outlier Logic:** Length of Stay (LOS) is calculated using a **Gamma Distribution**, mimicking real-world "Bed-Blockers" who stay significantly longer than the average.
 
+Unlike static spreadsheets, this model treats patients as **dynamic clinical entities**:
 
+- **The 10% Legacy Clock**  
+  10% of patients follow a “hard-breach” pathway, automatically escalating to **Category 1** at 26 weeks.
 
-### 3. "Bed-Choke" & Acuity Metrics
-The tool tracks "Cancellations" caused by bed shortages and flags **High Acuity Weeks** where the patient mix requires 1:1 nursing ratios.
+- **Stochastic Deterioration**  
+  Remaining patients deteriorate according to a **Poisson-distributed probability matrix**.
+
+- **Outlier Logic**  
+  Length of Stay (LOS) is generated using a **Gamma Distribution**, reproducing real-world *bed-blocker* behavior.
+
+---
+
+### 3. “Bed-Choke” & Acuity Metrics
+
+- Tracks **cancellations** caused by bed unavailability  
+- Flags **High-Acuity Weeks** where patient mix requires **1:1 nursing ratios**
+
+---
 
 ### 4. Live Ward Digital Twin
-The "Operations Manager" allows users to input the current status of every bed. It transforms a strategic model into a tactical tool for 7-day admission "prescriptions."
+
+The **Operations Manager** allows users to input the live status of every bed, transforming a strategic model into a **tactical 7-day admission prescription tool**.
+
+---
+
+## 📊 Dashboard Modules
+
+| Tab | Purpose |
+| :--- | :--- |
+| **Strategic Dashboard** | Side-by-side comparison of Baseline, Proposed, and AI-Optimized scenarios |
+| **Operations Manager** | Bed-level inputs producing a 7-day admission “Prescription” |
+| **Transparency Lab** | Visual validation of Poisson deterioration and Gamma LOS distributions |
 
 ---
 
 ## 🚀 Getting Started
 
-### 🛠️ Installation
-1. Clone the repository and install requirements:
-   ```bash
-<<<<<<< HEAD
-   pip install -r requirements.txt
-=======
-   pip install -r requirements.txt
-Launch the dashboard:Bashstreamlit run app.py
-📊 Dashboard ModulesTabPurposeStrategic DashboardSide-by-side comparison of Baseline, Proposed, and AI-Optimized scenarios. Focuses on long-term waitlist trends and "Annual Choke" metrics.Operations ManagerA granular, short-term tool. Input the current status of every bed in the ward to generate a 7-day "Prescription" for admissions.📝 Assumptions & LogicNursing Ratios: Staffing is calculated at 4.5 FTE per bed to maintain 24/7 safe coverage.Priority Logic: Admissions are prioritized by Clinical Category (1-5) first, then by Waitlist Age (longest waiters).Bed Buffers: Scenarios can be tested with "Safety Buffers" (beds held empty for emergency arrivals) to see the impact on elective throughput.📂 Project Structureapp.py: The user interface, sidebar management, and session state.engine.py: The simulation logic, patient aging, and AI solver.visuals.py: Custom Plotly charts, CSS-styled ward maps, and metric cards.
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-username/cardiac-strategy-lab.git
+cd cardiac-strategy-lab
 
+# 2. Install requirements
+pip install -r requirements.txt
+
+# 3. Launch the dashboard
+streamlit run app.py
+
+
+## 📝 Assumptions & Logic
+
+- **Nursing Ratios**  
+  Staffing is calculated at **4.5 FTE per bed** to maintain 24/7 safe coverage.
+
+- **Priority Logic**  
+  Admissions are prioritized by **Clinical Category (1–5)** first, then by **waitlist age**.
+
+- **Bed Buffers**  
+  Scenarios can be tested with **safety buffers** (beds held empty for emergency arrivals).
 
 ---
 
-### Additional Files
+## 📂 Project Structure
 
-To complete your setup, here are the other two small files:
-
-**`requirements.txt`**
 ```text
-streamlit
-pandas
-numpy
-plotly
-.gitignorePlaintextvenv/
-__pycache__/
-.streamlit/
-*.pyc
+app.py      # User interface, sidebar management, session state
+engine.py   # Simulation logic, patient aging, AI solver
+visuals.py  # Plotly charts, ward maps, metric cards
+
+## 🛠️ Configuration Snippets
+
+requirements.txt  
+streamlit  
+pandas  
+numpy  
+plotly  
+
+.gitignore  
+venv/  
+__pycache__/  
+.streamlit/  
+*.pyc  
 .DS_Store
->>>>>>> 90270b11f04eca2e659494c75dc264690f25e4b9
