@@ -153,7 +153,7 @@ if submit_btn or st.session_state.init:
             # Fix: Extract the row and convert to a standard dictionary 
             # to ensure 'ward_state' is accessible by key
             current_data = res.iloc[view_wk].to_dict()
-            render_ward_ops(current_data, p_b))
+            render_ward_ops(current_data, p_b)
 
     with tab3:
         st.subheader("🤖 Intelligence Engine: The 'Friction' Model")
