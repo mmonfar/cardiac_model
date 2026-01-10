@@ -1,85 +1,173 @@
 import pandas as pd
 import numpy as np
 
-def run_simulation(params, current_ward, weeks=52, seed=42):
-    np.random.seed(seed)
+def run_simulation(params, current_ward, weeks=52, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+    
+    # --- 1. SETUP PARAMETERS ---
+    history = []
+
+    los_map = {
+        1: params.get('los_cat1', 22),
+        2: params.get('los_cat2', 11),
+        3: params.get('los_cat3', 5),
+        4: params.get('los_cat4', 2),
+        5: params.get('los_cat5', 2)
+    }
+    
+    det_matrix = {
+        5: params.get('det_5to4', 0.02),
+        4: params.get('det_4to3', 0.04),
+        3: params.get('det_3to2', 0.07),
+        2: params.get('det_2to1', 0.12)
+    }
+
+    # NEW: Calculate probabilities for fresh referrals based on sidebar mix
+    total_dist = (params.get('dist_cat1', 10) + params.get('dist_cat2', 15) + 
+                  params.get('dist_cat3', 20) + params.get('dist_cat4', 30) + 
+                  params.get('dist_cat5', 25))
+    
+    cat_probs = [
+        params.get('dist_cat1', 10) / total_dist,
+        params.get('dist_cat2', 15) / total_dist,
+        params.get('dist_cat3', 20) / total_dist,
+        params.get('dist_cat4', 30) / total_dist,
+        params.get('dist_cat5', 25) / total_dist
+    ]
+    
     active_beds = [{'cat': p.get('Cat', 3), 'days_remaining': p.get('DaysRemaining', 5)} for p in current_ward]
     
-    # Initialization of Legacy vs Fresh Backlog
+    # --- 2. INITIALIZE BACKLOG ---
     backlog = []
-    legacy_count = int(params['total_backlog'] * (params['dist_legacy'] / 100))
-    fresh_count = params['total_backlog'] - legacy_count
-    cat_probs = [params[f'dist_cat{i}']/100 for i in range(1,6)]
+    total_backlog = params.get('total_backlog', 60)
+    legacy_pct = params.get('dist_legacy', 25) / 100
     
-    for _ in range(legacy_count):
-        backlog.append({'cat': np.random.choice([1,2,3,4,5], p=cat_probs), 'weeks_waiting': np.random.randint(26, 40)})
-    for _ in range(fresh_count):
-        backlog.append({'cat': np.random.choice([1,2,3,4,5], p=cat_probs), 'weeks_waiting': np.random.randint(0, 25)})
+    num_legacy = np.random.poisson(total_backlog * legacy_pct)
+    num_fresh = max(0, total_backlog - num_legacy)
 
-    history = []
-    los_map = {1: 22, 2: 11, 3: 5, 4: 2, 5: 2}
+    for _ in range(num_legacy):
+        # Forced to Cat 1 and flagged as Legacy Diagnosis
+        backlog.append({
+            'cat': 1, 
+            'weeks_waiting': np.random.randint(26, 40),
+            'is_legacy_diagnosis': True  # <--- NEW FLAG
+        })
     
+    for _ in range(num_fresh):
+        backlog.append({
+            'cat': np.random.choice([1,2,3,4,5], p=cat_probs), 
+            'weeks_waiting': np.random.randint(0, 25),
+            'is_legacy_diagnosis': False # <--- NEW FLAG
+        })
+    
+    # --- 3. WEEKLY LOOP ---
     for week in range(weeks):
-        # 1. Deterioration & 26-Week Factor
+        # A) DETERIORATION & BREACH LOGIC
+        system_lambda = 0
         for p in backlog:
             p['weeks_waiting'] += 1
-            risk_mult = 2.0 if p['weeks_waiting'] >= 26 else 1.0
-            for c in range(5, 1, -1):
-                if p['cat'] == c and np.random.random() < (params.get(f'det_{c}to{c-1}', 0.04) * risk_mult):
-                    p['cat'] = c-1; break
-        
-        # 2. Referrals & Discharges
+            
+            # --- PATHWAY A: THE CLOCK (Specific to Legacy Diagnosis Cohort) ---
+            if p.get('is_legacy_diagnosis', False) and p['weeks_waiting'] >= 26 and p['cat'] > 1:
+                p['cat'] = 1
+
+            # --- PATHWAY B: THE CLINICAL DECLINE (For Standard Cohort) ---
+            # Standard patients decline stochasticly via the matrix
+            if not p.get('is_legacy_diagnosis', False) and p['cat'] in det_matrix and p['cat'] > 1:
+                system_lambda += det_matrix[p['cat']]
+                        
+        num_deteriorations = np.random.poisson(system_lambda)
+
+        if num_deteriorations > 0:
+            upgradable = [p for p in backlog if p['cat'] > 1]
+            if upgradable:
+                actual_upgrades = min(num_deteriorations, len(upgradable))
+                targets = np.random.choice(upgradable, size=actual_upgrades, replace=False)
+                for p in targets:
+                    p['cat'] -= 1 
+
+        # B) STOCHASTIC REFERRALS
         new_refs = np.random.poisson(params['weekly_refs'])
         for _ in range(new_refs):
-            backlog.append({'cat': np.random.choice([1,2,3,4,5], p=cat_probs), 'weeks_waiting': 0})
-        
-        for p in active_beds: p['days_remaining'] -= 7
+            if np.random.random() < legacy_pct:
+                # Arrives as part of the special high-risk cohort
+                backlog.append({'cat': 1, 'weeks_waiting': 26, 'is_legacy_diagnosis': True})
+            else:
+                # Arrives as a standard patient
+                backlog.append({
+                    'cat': np.random.choice([1,2,3,4,5], p=cat_probs), 
+                    'weeks_waiting': 0,
+                    'is_legacy_diagnosis': False
+                })
+
+        # C) DISCHARGES
+        for p in active_beds: 
+            p['days_remaining'] -= 7
         active_beds = [p for p in active_beds if p['days_remaining'] > 0]
 
-        # 3. Admission & Bed-Day Choke
+        # D) ADMISSIONS & STOCHASTIC LOS
         eff_cap = params['total_beds'] - params['safety_buffer']
         avail = max(0, eff_cap - len(active_beds))
         to_admit = min(avail, params['surg_per_week'])
-        cancellations = max(0, params['surg_per_week'] - avail)
         
+        cancellations = max(0, params['surg_per_week'] - avail) if len(backlog) > 0 else 0
+        
+        # Sort by Category (1 is highest) then by longest wait
         backlog.sort(key=lambda x: (x['cat'], -x['weeks_waiting']))
+        
         admitted = {f'Cat {i}': 0 for i in range(1,6)}
         for _ in range(int(to_admit)):
             if backlog:
                 p = backlog.pop(0)
                 admitted[f"Cat {p['cat']}"] += 1
-                active_beds.append({'cat': p['cat'], 'days_remaining': los_map[p['cat']]})
+                
+                # Use the clean map value based on the category
+                base_days = los_map[p['cat']]
+                
+                # Calculate actual stay using Gamma distribution for realistic variance
+                # scale=params.get('los_scale', 1.0) controls the "tail" (outliers)
+                actual_los = int(np.random.gamma(shape=base_days, scale=params.get('los_scale', 1.0)))
+                
+                active_beds.append({
+                    'cat': p['cat'], 
+                    'days_remaining': max(1, actual_los)
+                })
 
+        # E) LOGGING
         history.append({
-            'week': week, 'Cat 1': len([p for p in backlog if p['cat']==1]),
-            'Cat 2': len([p for p in backlog if p['cat']==2]), 'Cat 3': len([p for p in backlog if p['cat']==3]),
-            'Cat 4': len([p for p in backlog if p['cat']==4]), 'Cat 5': len([p for p in backlog if p['cat']==5]),
+            'week': week, 
+            'Cat 1': len([p for p in backlog if p['cat']==1]),
+            'Cat 2': len([p for p in backlog if p['cat']==2]), 
+            'Cat 3': len([p for p in backlog if p['cat']==3]),
+            'Cat 4': len([p for p in backlog if p['cat']==4]), 
+            'Cat 5': len([p for p in backlog if p['cat']==5]),
             'Over_26_Wks': len([p for p in backlog if p['weeks_waiting'] >= 26]),
-            'occupancy': len(active_beds), 'cancellations': cancellations,
-            'admissions': admitted, 'ward_state': [dict(p) for p in active_beds]
+            'occupancy': len(active_beds), 
+            'cancellations': cancellations,
+            'admissions': admitted, 
+            'ward_state': [dict(p) for p in active_beds],
+            'det_events': num_deteriorations 
         })
     return pd.DataFrame(history)
 
 def find_ai_recommendation(params, target_wk):
-    """
-    Solves for the specific configuration where the 26-week legacy 
-    backlog hits ZERO and stays stabilized.
-    """
-    # 1. Start with the current beds and try to solve with theater slots
-    # 2. If slots alone can't do it (due to Bed-Day choke), expand beds up to 10
-    for beds in range(params['total_beds'], 11): 
+    """Optimizes for Zero Risk at Target Week."""
+    best_score = float('inf')
+    best_config = (params['surg_per_week'], params['total_beds'])
+    
+    for beds in range(params['total_beds'], 16): 
         for slots in range(1, 15): 
             test_params = {**params, 'surg_per_week': slots, 'total_beds': beds}
+            results = [run_simulation(test_params, [], weeks=target_wk + 1, seed=s) for s in range(3)]
             
-            # Run a test simulation to see the outcome at the target week
-            df = run_simulation(test_params, [], weeks=target_wk + 1)
+            avg_risk = np.mean([df.iloc[target_wk]['Over_26_Wks'] for df in results])
+            avg_cancels = np.mean([df['cancellations'].sum() for df in results])
             
-            if not df.empty:
-                outcome = df.iloc[target_wk]
-                # HARD CONSTRAINT: Legacy (Over 26 Wks) must be exactly 0
-                # AND High Acuity (Cat 1/2) must be under control
-                if outcome['Over_26_Wks'] == 0 and (outcome['Cat 1'] + outcome['Cat 2']) <= 2:
-                    return slots, beds
+            score = (avg_risk * 1000) + (avg_cancels * 50) + (beds * 20) + (slots * 10)
+            
+            if avg_risk == 0 and score < best_score:
+                best_score = score
+                best_config = (slots, beds)
                     
-    # Fallback if no solution is found within 10 beds
-    return 10, 10
+    return best_config

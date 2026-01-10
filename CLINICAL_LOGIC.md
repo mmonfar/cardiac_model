@@ -1,44 +1,48 @@
-Here is the full content for CLINICAL_LOGIC.md. I have formatted it specifically for GitHub so that the math and tables render clearly for any clinical or technical reviewer.Markdown# 🩺 Clinical Logic & Validation Specification
+# 🩺 Clinical Logic & Validation Specification
 
 This document outlines the clinical assumptions, mathematical models, and prioritization heuristics used in the Cardiac Service Strategy Lab.
 
-## 1. Stochastic Deterioration Model
-The simulation assumes that a patient’s clinical status is dynamic. Time spent on the waitlist is treated as a physiological stressor.
+## 1. Dual-Pathway Risk Model
+The simulation recognizes two distinct cohorts of patients, reflecting real-world cardiac waitlist dynamics.
 
-### The 26-Week Risk Multiplier
-Patients are assigned a baseline weekly probability of "upgrading" to a higher acuity category (e.g., Cat 3 → Cat 2).
-- **Pre-Breach (0-25 weeks):** $P(\text{deterioration}) = 0.04$ (4% weekly).
-- **Post-Breach (26+ weeks):** $P(\text{deterioration}) = 0.04 \times 2.0 = 0.08$ (8% weekly).
+### Pathway A: The Legacy Clock (10% Default)
+This cohort represents high-risk patients who have already exceeded the 26-week threshold or are part of a high-complexity subgroup. 
+- **The Rule:** If a Legacy patient hits Week 26, they automatically escalate to **Category 1**.
+- **Rationale:** Mimics the "Breach Point" where clinical risk is deemed too high to wait any longer, mandating immediate intervention.
 
-**Rationale:** Prolonged waiting for cardiac intervention is associated with increased symptom burden and higher risks of acute decompensation. The $2.0\times$ multiplier forces the model to recognize that "stale" backlogs become more difficult and expensive to clear over time.
-
----
-
-## 2. Resource Consumption by Acuity (LOS Mapping)
-The model acknowledges that a "bed" is not a uniform unit of capacity. Higher acuity patients consume more "Bed-Days," creating a non-linear relationship between admissions and occupancy.
-
-| Category | Clinical Urgency | Mean Length of Stay (LOS) |
-| :--- | :--- | :--- |
-| **Cat 1** | Critical / Emergent | 22 Days |
-| **Cat 2** | Urgent | 11 Days |
-| **Cat 3** | Semi-Urgent | 5 Days |
-| **Cat 4** | Routine | 2 Days |
-| **Cat 5** | Minor / Investigative | 2 Days |
-
-
-
-**Impact:** Deterioration from Cat 3 to Cat 1 represents a **440% increase** in bed-day consumption per patient.
+### Pathway B: The Standard Matrix (Stochastic Decline)
+The remaining 90% of arrivals follow a probability-based decline using the **Poisson Distribution**.
+- **The Logic:** Every week, the system calculates a `system_lambda` (the sum of individual deterioration probabilities).
+- **Rationale:** This creates "Deterioration Clusters"—weeks where multiple patients "crash" simultaneously, testing ward resilience.
 
 ---
 
-## 3. Prioritization Heuristics
-The admission engine mimics the multidisciplinary team (MDT) decision-making process using a multi-key sort:
+## 2. Resource Consumption & The Gamma Distribution
+Length of Stay (LOS) is not fixed; it is modeled using a **Gamma Distribution** to account for clinical outliers.
 
-1. **Safety First (Clinical Category):** The system always pulls Cat 1 and Cat 2 patients first.
-2. **Breach Prevention (Wait Time):** Within a category, the system prioritizes those approaching or exceeding the 26-week threshold.
+| Category | Clinical Urgency | Mean LOS | Mathematical Distribution |
+| :--- | :--- | :--- | :--- |
+| **Cat 1** | Critical / Emergent | 22 Days | Gamma (Shape=22, Scale=Slider) |
+| **Cat 2** | Urgent | 11 Days | Gamma (Shape=11, Scale=Slider) |
+| **Cat 3** | Semi-Urgent | 5 Days | Gamma (Shape=5, Scale=Slider) |
+| **Cat 4** | Routine | 2 Days | Gamma (Shape=2, Scale=Slider) |
 
-```python
-# The underlying sorting logic:
-backlog.sort(key=lambda x: (x['cat'], -x['weeks_waiting']))
 
-4. Operational "Bed-Choke" LogicA surgery is logged as a "Cancellation" when theater slots are available but effective bed capacity is zero.Effective Capacity = $Total\ Beds - Safety\ Buffer$The Safety Buffer represents beds reserved for emergency non-elective admissions (e.g., emergency department arrivals).5. Metrics & Stability ScoringThe Stability Score (%) evaluates the health of the configuration:Throughput: Success in reducing the 26-week legacy count.Efficiency: Penalization for every "Bed-Choke" cancellation.A high stability score indicates a "Balanced System" where theater throughput is perfectly matched to ward discharge rates.
+
+**The "Bed-Blocker" Effect:** By using a Gamma tail rather than a simple average, the model creates realistic "Crisis Weeks" where a single patient might stay 40 days instead of 22, causing a "Bed-Choke" for new admissions.
+
+---
+
+## 3. Prioritization & MDT Logic
+The admission engine mimics the multidisciplinary team (MDT) decision-making process:
+1. **Clinical Category:** Cat 1 (High Acuity) always moves to the front of the queue.
+2. **Wait Time:** Within categories, the longest-waiting patient is prioritized.
+
+**Sorting Logic:** `backlog.sort(key=lambda x: (x['cat'], -x['weeks_waiting']))`
+
+---
+
+## 4. Operational "Bed-Choke" Logic
+A surgery is logged as a **"Cancellation"** when theater slots are available but effective bed capacity is zero.
+- **Effective Capacity:** $Total Beds - Safety Buffer$
+- **The Buffer:** Represents beds reserved for emergency arrivals. Without this, the model assumes 100% efficiency, which is clinically unsafe.
