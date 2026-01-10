@@ -149,7 +149,11 @@ if submit_btn or st.session_state.init:
         if 'op_results' in st.session_state:
             res = st.session_state.op_results
             view_wk = st.select_slider("Forecast Timeline (Week):", options=range(len(res)))
-            render_ward_ops(res.iloc[view_wk], p_b)
+            
+            # Fix: Extract the row and convert to a standard dictionary 
+            # to ensure 'ward_state' is accessible by key
+            current_data = res.iloc[view_wk].to_dict()
+            render_ward_ops(current_data, p_b))
 
     with tab3:
         st.subheader("🤖 Intelligence Engine: The 'Friction' Model")
