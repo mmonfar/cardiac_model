@@ -97,6 +97,19 @@ with st.spinner("Analyzing Clinical Pathways..."):
 st.title("Cardiac Service Strategy: Executive Decision Suite")
 st.success(f"**AI Recommendation:** To achieve stability by Week {target_wk}, allocate **{ai_surg} Slots** and **{ai_beds} Beds**.")
 
+# ADD THIS PART:
+with st.expander("💡 Strategic Rationale", expanded=False):
+    time_rationale = "immediate stabilization" if target_wk < 20 else "long-term sustainable flow"
+    
+    st.write(f"The AI determined that **{ai_beds} beds** are required for **{time_rationale}**.")
+    
+    c1, c2, c3 = st.columns(3)
+    c1.markdown("**1. Clinical Safety** \nZero-tolerance for patients exceeding the 26-week threshold.")
+    c2.markdown("**2. Financial Resilience** \nPrioritizes preventing theater cancellations, which carry high sunk costs (Theater/Staff/Consumables).")
+    c3.markdown("**3. Patient Experience** \nMaintains a 'Safety Buffer' to ensure surgical dates are honored, protecting the facility's reputation.")
+    
+    st.info(f"**Operational Insight:** At Week {target_wk}, the AI maintains higher bed capacity because the 'cost' of a bed sitting empty is significantly lower than the 'cost' of a cancelled cardiac theater slot.")
+
 tab1, tab2, tab3 = st.tabs(["📊 Strategy Comparison", "🛌 Operations & Floor Map", "🔬 Model Transparency"])
 
 with tab1:
@@ -144,4 +157,33 @@ with tab2:
         render_ward_ops(res.iloc[view_wk], p_b)
 
 with tab3:
+    st.subheader("🤖 Intelligence Engine: The 'Friction' Model")
+    st.write("""
+    The AI evaluates thousands of configurations. It doesn't just look for the fewest beds; 
+    it looks for the **lowest total cost of failure**.
+    """)
+    
+    # Using columns to show the 'Penalty' logic in AED
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Clinical Breach Penalty", "High Risk", "Weight: 5,000")
+        st.caption("Represents the critical risk of a cardiac event while waiting.")
+        
+    with col2:
+        # Estimated cost of a cancelled cardiac theater slot in Dubai
+        st.metric("Cancellation Friction", "AED 15,000", "Weight: 100")
+        st.caption("Estimated cost of idle theater time, staff, and re-scheduling logistics.")
+        
+    with col3:
+        # Cost of an 'Empty Bed Day'
+        st.metric("Idle Capacity Cost", "AED 1,500", "Weight: 20")
+        st.caption("Daily fixed cost of a staffed bed. This is the 'cheapest' failure mode.")
+
+    st.markdown("""
+    > **Decision Logic:** Because a **Cancellation (AED 15,000)** is 10x more expensive than an **Idle Bed (AED 1,500)**, 
+    > the AI will always choose to have a spare bed ready rather than risk a last-minute surgical delay.
+    """)
+    st.divider()
+    
     render_variance_analysis(common)
