@@ -131,10 +131,10 @@ if submit_btn or st.session_state.init:
         st.subheader("Operational Forecast & Live Ward State")
         if 'ward_data' not in st.session_state:
             st.session_state.ward_data = pd.DataFrame([
-                {"Bed": 1, "Occupied": True, "Cat": 1, "DaysRemaining": 14},
-                {"Bed": 2, "Occupied": True, "Cat": 2, "DaysRemaining": 7},
-                {"Bed": 3, "Occupied": True, "Cat": 3, "DaysRemaining": 3}
-            ] + [{"Bed": i+4, "Occupied": False, "Cat": 3, "DaysRemaining": 0} for i in range(12)])
+                {"Bed": 1, "Occupied": True, "cat": 1, "days_remaining": 14},
+                {"Bed": 2, "Occupied": True, "cat": 2, "days_remaining": 7},
+                {"Bed": 3, "Occupied": True, "cat": 3, "days_remaining": 3}
+            ] + [{"Bed": i+4, "Occupied": False, "cat": 3, "days_remaining": 0} for i in range(12)])
 
         with st.form("ward_init"):
             st.write("Current Ward Status (Input live occupancy for forecasting)")

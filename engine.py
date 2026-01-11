@@ -28,6 +28,7 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
     
     # Ward State: Just an array of days remaining for occupied beds
     ward_days = np.array([p.get('DaysRemaining', 5) for p in current_ward], dtype=float)
+    ward_cats = np.array([p.get('Cat', 3) for p in current_ward], dtype=int)
     
     # --- 2. INITIALIZE BACKLOG (NumPy Matrix) ---
     # Column 0: Category | Column 1: Weeks Waiting | Column 2: Is Legacy (1=True, 0=False)
@@ -40,9 +41,9 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
     backlog = np.zeros((5000, 3)) 
     
     # Populate Legacy cohort
-    backlog[:num_legacy, 0] = 1 # All start as Cat 1
-    backlog[:num_legacy, 1] = np.random.randint(26, 40, size=num_legacy)
-    backlog[:num_legacy, 2] = 1
+    backlog[:num_legacy, 0] = 5 # Start as stable cat 5
+    backlog[:num_legacy, 1] = np.random.randint(1, 25, size=num_legacy) # # The "Debt"
+    backlog[:num_legacy, 2] = 1 # Flagged as Special
     
     # Populate Standard cohort
     backlog[num_legacy:total_bl, 0] = np.random.choice([1,2,3,4,5], size=num_fresh, p=cat_probs)
@@ -83,15 +84,32 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
         new_refs = np.random.poisson(params['weekly_refs'])
         for _ in range(new_refs):
             if active_count < 4999: # Stay within pre-allocated bounds
-                if np.random.random() < legacy_pct:
-                    backlog[active_count] = [1, 26, 1] # Arrives at breach
-                else:
-                    backlog[active_count] = [np.random.choice([1,2,3,4,5], p=cat_probs), 0, 0]
+                # 1. 10% have the 'Special Diagnosis' flag
+                is_special = 1 if np.random.random() < (params.get('dist_legacy', 10)/100) else 0
+        
+                # 2. Variable Referral Lag (e.g., Mean arrival at week 3)
+                # We use a Poisson distribution to make 'late' arrivals possible but less common
+                arrival_week = max(0, np.random.poisson(2)) # Centers on 2 weeks, but allows 0 
+        
+                # 3. Initial Clinical Category (1-5)
+                arrival_cat = np.random.choice([1,2,3,4,5], p=cat_probs)
+        
+                # Ensure we don't start someone already past the trigger in Cat 5
+                if is_special and arrival_week >= 26:
+                    arrival_cat = 1
+            
+                backlog[active_count] = [arrival_cat, arrival_week, is_special]
                 active_count += 1
 
         # E) Discharges
         ward_days -= 7
-        ward_days = ward_days[ward_days > 0]
+        
+        # Define the mask based on who still has time remaining
+        mask = ward_days > 0
+        
+        # Apply the mask to BOTH arrays at the same time
+        ward_days = ward_days[mask]
+        ward_cats = ward_cats[mask]
 
         # F) Admissions & Sorting
         eff_cap = params['total_beds'] - params['safety_buffer']
@@ -102,27 +120,33 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
         admitted_counts = {f'Cat {i}': 0 for i in range(1, 6)}
 
         if to_admit > 0:
-            # Vectorized multi-key sort: Category (ASC), then Weeks Waiting (DESC)
-            # lexsort uses keys in reverse order: [secondary, primary]
+            # 1. Sort the backlog by priority (Category then Wait Time)
             idx = np.lexsort((-backlog[:active_count, 1], backlog[:active_count, 0]))
             backlog[:active_count] = backlog[idx]
             
+            # 2. Slice the admitted patients
             admitted_view = backlog[:to_admit]
-            for c in admitted_view[:, 0]:
-                admitted_counts[f'Cat {int(c)}'] += 1
+            new_cats = admitted_view[:, 0].astype(int) 
             
-            # Vectorized Gamma Distribution for LOS
-            shapes = los_map[admitted_view[:, 0].astype(int)]
+            # 3. VECTORIZED COUNTING: Count occurrences of each Category (1-5)
+            # np.bincount counts from 0 up to the max value found
+            counts = np.bincount(new_cats, minlength=6)
+            for i in range(1, 6):
+                admitted_counts[f'Cat {i}'] = int(counts[i])
+            
+            # 4. Vectorized Length of Stay (LOS)
+            shapes = los_map[new_cats]
             new_stays = np.random.gamma(shape=shapes, scale=params.get('los_scale', 1.0))
-            ward_days = np.concatenate([ward_days, np.maximum(1, new_stays)])
             
-            # Shift backlog up to remove admitted patients
+            # 5. Append to ward tracking arrays
+            ward_days = np.concatenate([ward_days, np.maximum(1, new_stays)])
+            ward_cats = np.concatenate([ward_cats, new_cats]) # Ensure ward_cats is initialized in Step 1
+            
+            # 6. Shift backlog (Vectorized removal)
             backlog[:active_count-to_admit] = backlog[to_admit:active_count]
             active_count -= to_admit
 
         # G) LOGGING
-        # We only create the 'ward_state' list here. 
-        # The math above remains 100% vectorized NumPy.
         history.append({
             'week': week,
             'Cat 1': np.sum(backlog[:active_count, 0] == 1),
@@ -135,8 +159,8 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
             'cancellations': cancellations,
             'admissions': admitted_counts,
             'det_events': num_det,
-            # Use list comprehension for the UI—it's fast enough for 1 record/week
-            'ward_state': [{'cat': 2, 'days_remaining': d} for d in ward_days] 
+            # FIXED: Pairs the real category with the real days remaining
+            'ward_state': [{'cat': int(c), 'days_remaining': d} for c, d in zip(ward_cats, ward_days)] 
         })
         
     return pd.DataFrame(history)
