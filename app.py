@@ -164,13 +164,17 @@ if submit_btn or st.session_state.init:
     
             # 1. Timeline Control
             view_wk = st.select_slider("Forecast Timeline (Week):", options=range(len(res)), key="op_week_slider")
-    
+            # 🟢 FIX: Define the row first so the code knows what 'target_row' is
+            target_row = res.iloc[view_wk]    
             # 2. Extract specific week (This is the 'Who' is in the beds)
             # We take the 'ward_state' list we created in the engine
             current_ward_list = res.iloc[view_wk]['ward_state'] 
     
             # 3. Create a snapshot dict for the visualizer
-            current_snapshot = {'ward_state': current_ward_list}
+            current_snapshot = {
+                'ward_state': target_row['ward_state'],
+                'admissions': target_row['admissions']  # <--- THIS IS THE MISSING LINK
+            }
     
             # 4. Render (This is the 'Where' - total beds)
             # This solves the TypeError by providing BOTH arguments
