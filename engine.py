@@ -27,8 +27,8 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
     cat_probs = [params.get(f'dist_cat{i}', 10) / total_dist for i in range(1, 6)]
     
     # Ward State: Just an array of days remaining for occupied beds
-    ward_days = np.array([p.get('DaysRemaining', 5) for p in current_ward], dtype=float)
-    ward_cats = np.array([p.get('Cat', 3) for p in current_ward], dtype=int)
+    ward_days = np.array([p.get('days_remaining', 5) for p in current_ward], dtype=float)
+    ward_cats = np.array([p.get('cat', 3) for p in current_ward], dtype=int)
     
     # --- 2. INITIALIZE BACKLOG (NumPy Matrix) ---
     # Column 0: Category | Column 1: Weeks Waiting | Column 2: Is Legacy (1=True, 0=False)
@@ -51,102 +51,15 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
     
     active_count = total_bl
 
-    # --- 3. WEEKLY LOOP ---
+# --- 3. WEEKLY LOOP ---
+    # Initialize these so the VERY FIRST log (Week 0) has starting values
+    cancellations = 0
+    admitted_counts = {f'Cat {i}': 0 for i in range(1, 6)}
+    num_det = 0
+
     for week in range(weeks):
-        num_det = 0
-        if active_count > 0:
-            view = backlog[:active_count]
-            
-            # A) Aging
-            view[:, 1] += 1
-            
-            # B) Legacy Breach Pathway (Clock-based)
-            # If Legacy flag is 1 AND weeks >= 26 AND not already Cat 1 -> set to Cat 1
-            legacy_breach_mask = (view[:, 2] == 1) & (view[:, 1] >= 26) & (view[:, 0] > 1)
-            view[legacy_breach_mask, 0] = 1
-            
-            # C) Clinical Deterioration Pathway (Probability-based)
-            # Calculate deterioration lambda only for non-legacy patients
-            std_mask = (view[:, 2] == 0) & (view[:, 0] > 1)
-            if np.any(std_mask):
-                current_cats = view[std_mask, 0].astype(int)
-                system_lambda = det_rates[current_cats].sum()
-                num_det = np.random.poisson(system_lambda)
-                
-                if num_det > 0:
-                    upgradable_idx = np.where(view[:, 0] > 1)[0]
-                    if len(upgradable_idx) > 0:
-                        actual_upgrades = min(num_det, len(upgradable_idx))
-                        targets = np.random.choice(upgradable_idx, size=actual_upgrades, replace=False)
-                        view[targets, 0] -= 1
-
-        # D) New Referrals (Stochastic)
-        new_refs = np.random.poisson(params['weekly_refs'])
-        for _ in range(new_refs):
-            if active_count < 4999: # Stay within pre-allocated bounds
-                # 1. 10% have the 'Special Diagnosis' flag
-                is_special = 1 if np.random.random() < (params.get('dist_legacy', 10)/100) else 0
-        
-                # 2. Variable Referral Lag (e.g., Mean arrival at week 3)
-                # We use a Poisson distribution to make 'late' arrivals possible but less common
-                arrival_week = max(0, np.random.poisson(2)) # Centers on 2 weeks, but allows 0 
-        
-                # 3. Initial Clinical Category (1-5)
-                arrival_cat = np.random.choice([1,2,3,4,5], p=cat_probs)
-        
-                # Ensure we don't start someone already past the trigger in Cat 5
-                if is_special and arrival_week >= 26:
-                    arrival_cat = 1
-            
-                backlog[active_count] = [arrival_cat, arrival_week, is_special]
-                active_count += 1
-
-        # E) Discharges
-        ward_days -= 7
-        
-        # Define the mask based on who still has time remaining
-        mask = ward_days > 0
-        
-        # Apply the mask to BOTH arrays at the same time
-        ward_days = ward_days[mask]
-        ward_cats = ward_cats[mask]
-
-        # F) Admissions & Sorting
-        eff_cap = params['total_beds'] - params['safety_buffer']
-        avail = int(max(0, eff_cap - len(ward_days)))
-        to_admit = min(avail, params['surg_per_week'], active_count)
-        
-        cancellations = max(0, params['surg_per_week'] - avail) if active_count > 0 else 0
-        admitted_counts = {f'Cat {i}': 0 for i in range(1, 6)}
-
-        if to_admit > 0:
-            # 1. Sort the backlog by priority (Category then Wait Time)
-            idx = np.lexsort((-backlog[:active_count, 1], backlog[:active_count, 0]))
-            backlog[:active_count] = backlog[idx]
-            
-            # 2. Slice the admitted patients
-            admitted_view = backlog[:to_admit]
-            new_cats = admitted_view[:, 0].astype(int) 
-            
-            # 3. VECTORIZED COUNTING: Count occurrences of each Category (1-5)
-            # np.bincount counts from 0 up to the max value found
-            counts = np.bincount(new_cats, minlength=6)
-            for i in range(1, 6):
-                admitted_counts[f'Cat {i}'] = int(counts[i])
-            
-            # 4. Vectorized Length of Stay (LOS)
-            shapes = los_map[new_cats]
-            new_stays = np.random.gamma(shape=shapes, scale=params.get('los_scale', 1.0))
-            
-            # 5. Append to ward tracking arrays
-            ward_days = np.concatenate([ward_days, np.maximum(1, new_stays)])
-            ward_cats = np.concatenate([ward_cats, new_cats]) # Ensure ward_cats is initialized in Step 1
-            
-            # 6. Shift backlog (Vectorized removal)
-            backlog[:active_count-to_admit] = backlog[to_admit:active_count]
-            active_count -= to_admit
-
-        # G) LOGGING
+        # 🟢 MOVE G (LOGGING) TO THE TOP
+        # This records the ward EXACTLY as you typed it for Week 0
         history.append({
             'week': week,
             'Cat 1': np.sum(backlog[:active_count, 0] == 1),
@@ -159,10 +72,76 @@ def run_simulation(params, current_ward, weeks=52, seed=None):
             'cancellations': cancellations,
             'admissions': admitted_counts,
             'det_events': num_det,
-            # FIXED: Pairs the real category with the real days remaining
             'ward_state': [{'cat': int(c), 'days_remaining': d} for c, d in zip(ward_cats, ward_days)] 
         })
-        
+
+        # 🟢 WRAP THE WORK IN AN IF-BLOCK
+        # This runs the logic to transition from the current week to the next
+        if week < weeks - 1:
+            num_det = 0
+            if active_count > 0:
+                view = backlog[:active_count]
+                
+                # A) Aging
+                view[:, 1] += 1
+                
+                # B) Legacy Breach
+                legacy_breach_mask = (view[:, 2] == 1) & (view[:, 1] >= 26) & (view[:, 0] > 1)
+                view[legacy_breach_mask, 0] = 1
+                
+                # C) Clinical Deterioration
+                std_mask = (view[:, 2] == 0) & (view[:, 0] > 1)
+                if np.any(std_mask):
+                    current_cats = view[std_mask, 0].astype(int)
+                    system_lambda = det_rates[current_cats].sum()
+                    num_det = np.random.poisson(system_lambda)
+                    if num_det > 0:
+                        upgradable_idx = np.where(view[:, 0] > 1)[0]
+                        if len(upgradable_idx) > 0:
+                            actual_upgrades = min(num_det, len(upgradable_idx))
+                            targets = np.random.choice(upgradable_idx, size=actual_upgrades, replace=False)
+                            view[targets, 0] -= 1
+
+            # D) New Referrals
+            new_refs = np.random.poisson(params['weekly_refs'])
+            for _ in range(new_refs):
+                if active_count < 4999:
+                    is_special = 1 if np.random.random() < (params.get('dist_legacy', 10)/100) else 0
+                    arrival_week = max(0, np.random.poisson(2)) 
+                    arrival_cat = np.random.choice([1,2,3,4,5], p=cat_probs)
+                    if is_special and arrival_week >= 26: arrival_cat = 1
+                    backlog[active_count] = [arrival_cat, arrival_week, is_special]
+                    active_count += 1
+
+            # E) Discharges
+            ward_days -= 7
+            mask = ward_days > 0
+            ward_days = ward_days[mask]
+            ward_cats = ward_cats[mask]
+
+            # F) Admissions & Sorting
+            eff_cap = params['total_beds'] - params['safety_buffer']
+            avail = int(max(0, eff_cap - len(ward_days)))
+            to_admit = min(avail, params['surg_per_week'], active_count)
+            cancellations = max(0, params['surg_per_week'] - avail) if active_count > 0 else 0
+            admitted_counts = {f'Cat {i}': 0 for i in range(1, 6)}
+
+            if to_admit > 0:
+                idx = np.lexsort((-backlog[:active_count, 1], backlog[:active_count, 0]))
+                backlog[:active_count] = backlog[idx]
+                admitted_view = backlog[:to_admit]
+                new_cats = admitted_view[:, 0].astype(int) 
+                counts = np.bincount(new_cats, minlength=6)
+                for i in range(1, 6): admitted_counts[f'Cat {i}'] = int(counts[i])
+                
+                shapes = los_map[new_cats]
+                new_stays = np.random.gamma(shape=shapes, scale=params.get('los_scale', 1.0))
+                ward_days = np.concatenate([ward_days, np.maximum(1, new_stays)])
+                ward_cats = np.concatenate([ward_cats, new_cats])
+                
+                backlog[:active_count-to_admit] = backlog[to_admit:active_count]
+                active_count -= to_admit
+
     return pd.DataFrame(history)
 
 def find_ai_recommendation(params, target_wk):

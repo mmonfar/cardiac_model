@@ -31,7 +31,7 @@ def render_executive_kpis(df_base, df_prop, df_ai):
             st.metric("Annual Cancellations", total_cancels)
             st.metric("Year-End Legacy Risk", f"{risk_end} Patients")
 
-def render_triple_charts(df_c, df_p, df_ai, titles):
+def render_triple_charts(df_c, df_p, df_ai, titles, key=None):
     """The core side-by-side strategy view."""
     st.divider()
     data = [df_c, df_p, df_ai]
@@ -45,7 +45,7 @@ def render_triple_charts(df_c, df_p, df_ai, titles):
             fig.add_scatter(x=data[i]['week'], y=data[i]['Over_26_Wks'], 
                             name="Legacy Risk (>26w)", line=dict(color='white', dash='dot', width=2))
             fig.update_layout(showlegend=(i==2), margin=dict(l=10, r=10, t=30, b=10), template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"{key}_{i}")
 
 def render_ward_ops(week_data, total_capacity):
     """The 'Ground Truth' floor map and weekly prescription."""

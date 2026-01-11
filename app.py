@@ -120,7 +120,7 @@ if submit_btn or st.session_state.init:
     with tab1:
         render_executive_kpis(df_c_strat, df_p_strat, df_ai_strat)
         titles = [f"BASELINE: {c_s}S / {c_b}B", f"PROPOSED: {p_s}S / {p_b}B", f"AI TARGET: {ai_surg}S / {ai_beds}B"]
-        render_triple_charts(df_c_strat, df_p_strat, df_ai_strat, titles)
+        render_triple_charts(df_c_strat, df_p_strat, df_ai_strat, titles, key="strategy_comparison")
         
         if st.button("🚀 Run 52-Week Stress Test"):
             st.markdown("### Stress Test: 20 Parallel Simulation Runs")
@@ -129,6 +129,8 @@ if submit_btn or st.session_state.init:
 
     with tab2:
         st.subheader("Operational Forecast & Live Ward State")
+
+        # 1. Initialize data if not present
         if 'ward_data' not in st.session_state:
             st.session_state.ward_data = pd.DataFrame([
                 {"Bed": 1, "Occupied": True, "cat": 1, "days_remaining": 14},
@@ -136,24 +138,53 @@ if submit_btn or st.session_state.init:
                 {"Bed": 3, "Occupied": True, "cat": 3, "days_remaining": 3}
             ] + [{"Bed": i+4, "Occupied": False, "cat": 3, "days_remaining": 0} for i in range(12)])
 
+
+        # 2. The Form for input
         with st.form("ward_init"):
             st.write("Current Ward Status (Input live occupancy for forecasting)")
             edited_ward = st.data_editor(st.session_state.ward_data, num_rows="fixed")
             run_op_btn = st.form_submit_button("Generate Operational Forecast")
 
         if run_op_btn:
+            # 1. SAVE: Capture the live ward state
             st.session_state.ward_data = edited_ward
+            # 2. FILTER: Only send the patients actually in beds
             active_ward = edited_ward[edited_ward['Occupied']].to_dict('records')
+            # 3. CONSTRAIN: Run the model using your PROPOSED params and LIVE ward
+            # This is where the 'Third Graph' data is created
             st.session_state.op_results = run_simulation(params_p, active_ward, seed=42)
+            # 4. RESET: Ensure the slider starts at Week 0 for the new forecast
+            st.session_state.op_week_slider = 0
+            # Force a rerun to ensure the results are visible to the code below
+            st.rerun()
 
+        # --- 3. The Display Logic (OUTSIDE the form) ---
         if 'op_results' in st.session_state:
             res = st.session_state.op_results
-            view_wk = st.select_slider("Forecast Timeline (Week):", options=range(len(res)))
-            
-            # Fix: Extract the row and convert to a standard dictionary 
-            # to ensure 'ward_state' is accessible by key
-            current_data = res.iloc[view_wk].to_dict()
-            render_ward_ops(current_data, p_b)
+    
+            # 1. Timeline Control
+            view_wk = st.select_slider("Forecast Timeline (Week):", options=range(len(res)), key="op_week_slider")
+    
+            # 2. Extract specific week (This is the 'Who' is in the beds)
+            # We take the 'ward_state' list we created in the engine
+            current_ward_list = res.iloc[view_wk]['ward_state'] 
+    
+            # 3. Create a snapshot dict for the visualizer
+            current_snapshot = {'ward_state': current_ward_list}
+    
+            # 4. Render (This is the 'Where' - total beds)
+            # This solves the TypeError by providing BOTH arguments
+            render_ward_ops(current_snapshot, params_p['total_beds'])
+    
+            # 5. The "Third Graph" - Prove the impact of your manual table
+            st.divider()
+            st.subheader("Operational Impact on Throughput")
+            titles = [
+                f"BASELINE: {c_s}S / {c_b}B", 
+                f"PROPOSED: {p_s}S / {p_b}B", 
+                f"AI TARGET: {ai_surg}S / {ai_beds}B"
+            ]
+            render_triple_charts(res, res, res, titles, key="operational_forecast")
 
     with tab3:
         st.subheader("🤖 Intelligence Engine: The 'Friction' Model")
