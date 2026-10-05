@@ -1,0 +1,16 @@
+# Light ground: cream canvas, white raised surface,
+# slate text, teal accent, zero radius.
+[theme]
+base = "light"
+primaryColor = "#008080"
+backgroundColor = "#FDFBF7"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#17242B"
+baseRadius = "none"
+borderColor = "#E3E5E4"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
