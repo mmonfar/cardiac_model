@@ -1,27 +1,21 @@
-# --- Python Environment ---
-# Ignore the virtual environment folder
+# Python environments and caches
 venv/
+.venv/
 env/
-ENV/
-
-# --- Python Cache ---
-# Ignore compiled python files and cache folders
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
 
-# --- Streamlit Files ---
-# Ignore Streamlit's local configuration and credentials
-.streamlit/
+# Streamlit secrets (the theme config in .streamlit/config.toml is kept)
+.streamlit/secrets.toml
 
-# --- Operating System Files ---
-# Windows thumbnail cache
+# OS files
 Thumbs.db
-ehthumbs.db
-# macOS folder attributes
 .DS_Store
 
-# --- Project Specific ---
-# Ignore local environment variables (if you ever add a .env file for keys)
+# Local environment variables
 .env
