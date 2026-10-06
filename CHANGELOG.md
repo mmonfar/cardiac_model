@@ -4,6 +4,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [2.0.0] - 2026-10-05
 
+### Why (summary of fixes found when checking v1 against its own arithmetic)
+
+| v1 behaviour | Problem | v2 |
+|---|---|---|
+| CICU occupancy was counted from the waiting list (backlog x stay / 7) | It over-read occupancy about 5-fold at the default settings and moved the wrong way: more surgery shortened the list and so lowered the reported load. No capacity ever passed | Occupancy is counted from patients who actually had surgery (cases a week x stay), bed by bed and day by day |
+| The CICU test was inherited: "urgent cases are cleared and load fits" | It looks only at urgent cases and ignores the routine list. Priority scheduling always clears urgent cases first, so it said nothing about the backlog | Replaced by the objective above (stable list, occupancy at or below target, life-threatening first, optional surge bed). The old test is still shown for comparison |
+| Beds were released once a week | Short stays were held for a full week, which inflated ward occupancy and cancellations | Beds are freed on the discharge day (theatre Monday to Friday) |
+| One simulated run chose the recommendation | The recommended set-up cleared all 26-week waits in only 77-86% of fresh runs | The recommendation is chosen on one block of seeds and re-tested on fresh seeds; the success rate and its interval are shown |
+| A fixed sentence told the user the recommendation was reliable whatever the numbers | It was text, not a result | Removed. The page shows the measured success rate instead |
+| Deterioration drawn as one Poisson total, victims picked at random, a hard jump to category 1 at 26 weeks | Patients did not deteriorate according to their own category | One draw per patient per week on the patient's own category. Two start modes: from today's list, or from a settled state |
+
+Measured in [`docs/v1-vs-v2.md`](docs/v1-vs-v2.md) (100 seeds per scenario, fresh seeds for the out-of-sample figures).
+
+
 v1 is preserved at the tag `v1-final` and is superseded by this release.
 
 ### Added
