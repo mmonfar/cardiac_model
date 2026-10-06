@@ -57,8 +57,8 @@ def test_tight_seed7_26_weeks() -> None:
     assert sum(b["days_remaining"] for b in last_ward) == pytest.approx(55.67053101673399, abs=1e-9)
 
 
-def test_original_stress_test_ensemble() -> None:
-    # The original app's "52-Week Stress Test": seed=i for i in range(20).
+def test_v1_stress_test_ensemble() -> None:
+    # The v1 "52-Week Stress Test": seed=i for i in range(20).
     finals = [
         int(ward_referral.run_simulation(DEFAULT_PARAMS, [], seed=i)["Over_26_Wks"].to_numpy()[-1])
         for i in range(20)

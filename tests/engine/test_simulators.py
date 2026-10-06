@@ -78,8 +78,8 @@ def test_monte_carlo_is_reproducible(scenario: str) -> None:
     assert dist_a.n == 12
 
 
-def test_monte_carlo_seed0_reproduces_original_stress_test() -> None:
-    # The original app's stress test was seed=i for i in range(20): monte_carlo(seed=0).
+def test_monte_carlo_seed0_reproduces_v1_stress_test() -> None:
+    # The v1 stress test was seed=i for i in range(20): monte_carlo(seed=0).
     runs, dist = monte_carlo(WardReferralSimulator(), 52, n=20, seed=0)
     finals = [int(r["Over_26_Wks"].to_numpy()[-1]) for r in runs]
     assert finals[:3] == [74, 121, 84]

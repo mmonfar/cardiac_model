@@ -114,7 +114,7 @@ total = sum(mix)
 if total <= 0:
     st.error("The category mix must have at least one non-zero share.")
     st.stop()
-if total != 1.0:  # normalise, as the original app did
+if total != 1.0:  # normalise, as the v1 app did
     mix = [x / total for x in mix]
 if use_casemix and sum(mix_shares) <= 0:
     st.error("The lesion case mix must have at least one non-zero share.")

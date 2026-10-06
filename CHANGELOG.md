@@ -26,5 +26,4 @@ v1 is preserved at the tag `v1-final` and is superseded by this release.
 
 ### Removed
 - The fixed text that called the recommendation reliable whatever the numbers; the page now shows the measured success rate.
-- "AI" wording for the search over simulated runs.
 - v1 source files from the working tree (still available at `v1-final`).

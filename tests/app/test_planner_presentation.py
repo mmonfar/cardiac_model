@@ -27,7 +27,7 @@ def test_breach_status(samples: list[int], label: str, colour: str) -> None:
     ("peak", "beds", "urgent", "label"),
     [
         (9.9, 10, 0, "Within capacity"),
-        (10.0, 10, 0, "Within capacity"),  # original criterion is <=
+        (10.0, 10, 0, "Within capacity"),  # v1 criterion is <=
         (10.1, 10, 0, "Over CICU beds"),
         (5.0, 10, 2, "Urgent backlog"),
         (50.0, 10, 1, "Urgent backlog"),

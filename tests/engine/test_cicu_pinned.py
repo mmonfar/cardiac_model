@@ -34,7 +34,7 @@ def test_capacity5_52_weeks(mode: str, rounding: str) -> None:
     df, summary = cicu.run_simulation(5, 52, rounding, scheduling_mode=mode)
     assert len(df) == 53  # week-0 baseline + 52 weeks
     assert summary["totalCost"] == pytest.approx(cost, rel=1e-12)
-    assert summary["totalSurgeries"] == surgeries  # 0 in weighted mode: original quirk
+    assert summary["totalSurgeries"] == surgeries  # 0 in weighted mode: v1 quirk
     assert summary["finalBacklog"] == pytest.approx(backlog, rel=1e-12)
     assert summary["finalState"] == pytest.approx(final_state, rel=1e-12)
     assert df["cicu_occupancy"].max() == pytest.approx(max_cicu, rel=1e-12)
@@ -52,7 +52,7 @@ DEFAULT_MAX_CICU = [92.0, 54.14285714285714, 39.42857142857143, 38.0, 36.5714285
 
 def test_capacity_search_default_never_meets_criteria() -> None:
     # Occupancy is estimated from the *waiting* backlog, so with 10 beds no capacity in
-    # 3..14 qualifies and the original app always showed "8+". Kept as-is (parity).
+    # 3..14 qualifies and the v1 app always showed "8+". Kept as-is.
     table = cicu.find_optimal_capacity(52)
     assert table["capacity"].tolist() == list(range(3, 15))
     assert table["finalUrgent"].tolist() == [0.0] * 12

@@ -46,7 +46,6 @@ v1 (tag `v1-final`: `git checkout v1-final`) is the single-file ward model. v2 k
 | Beds were released once a week | Short stays were held for a full week, which inflated ward occupancy and cancellations | Beds are freed on the discharge day (theatre Monday to Friday) |
 | One simulated run chose the recommendation | The recommended set-up cleared all 26-week waits in only 77-86% of fresh runs | The recommendation is chosen on one block of seeds and re-tested on fresh seeds; the success rate and its interval are shown |
 | A fixed sentence told the user the recommendation was reliable whatever the numbers | It was text, not a result | Removed. The page shows the measured success rate instead |
-| "AI" wording for a search | It is a plain search over simulated runs | Wording removed throughout |
 | Deterioration drawn as one Poisson total, victims picked at random, a hard jump to category 1 at 26 weeks | Patients did not deteriorate according to their own category | One draw per patient per week on the patient's own category. Two start modes: from today's list, or from a settled state |
 
 The changes are measured in [`docs/v1-vs-v2.md`](docs/v1-vs-v2.md) (100 seeds per scenario, fresh seeds for the out-of-sample figures).

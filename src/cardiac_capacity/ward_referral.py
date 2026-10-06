@@ -1,18 +1,17 @@
 """Ward-referral mode: stochastic waiting list feeding a cardiac surgical ward.
 
-This is the v1 ward engine (``engine.py`` at tag ``v1-final``). The arithmetic
-and the *order of random draws* are unchanged, so every fixed seed reproduces the original
-output exactly (see ``tests/engine/test_ward_referral_pinned.py``). The one deliberate difference:
-the original seeded numpy's *global* RNG (``np.random.seed``); this port draws from a private
-``RandomState`` (``montecarlo.rng``), which yields the identical stream without touching
-global state. ``seed=None`` therefore draws fresh entropy rather than continuing the global
-stream.
+This is the v1 ward engine (``engine.py`` at tag ``v1-final``). The arithmetic and the *order of
+random draws* are those of v1, so every fixed seed reproduces the v1 output exactly (see
+``tests/engine/test_ward_referral_pinned.py``). The one deliberate difference: v1 seeded numpy's
+*global* RNG (``np.random.seed``); this module draws from a private ``RandomState``
+(``montecarlo.rng``), which yields the identical stream without touching global state.
+``seed=None`` therefore draws fresh entropy rather than continuing the global stream.
 
-Weekly loop, per original: log the state, then (except in the last week) age the backlog,
+Weekly loop, per v1: log the state, then (except in the last week) age the backlog,
 breach legacy patients at 26 weeks, deteriorate by Poisson, add Poisson referrals, discharge
 (7 days per week), and admit by category then by longest wait into gamma-distributed stays.
 
-Known quirks kept on purpose (behaviour-preserving port, not a rewrite):
+Known quirks kept on purpose (v1 behaviour, preserved):
 
 - ``dist_legacy`` defaults to 25 % for the starting backlog but 10 % for new referrals.
 - The backlog is a fixed 5000-row buffer; referrals beyond 4999 active patients are dropped.

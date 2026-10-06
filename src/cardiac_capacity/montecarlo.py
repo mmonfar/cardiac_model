@@ -4,7 +4,7 @@ Design choices:
 
 - ``rng(seed)`` returns numpy's legacy ``RandomState`` (MT19937), not a ``Generator``.
   ``np.random.seed(s)`` followed by ``np.random.<draw>`` is exactly ``RandomState(s).<draw>``,
-  so the ported models reproduce the originals bit for bit, and NEP 19 freezes that stream
+  so the v1 models reproduce their outputs bit for bit, and NEP 19 freezes that stream
   across numpy releases. A new model with no legacy outputs to match may use
   ``np.random.default_rng`` instead; ``run`` does not care.
 - ``run(fn, n, seed)`` hands each replication an *integer* seed ``seed + i``, not an RNG

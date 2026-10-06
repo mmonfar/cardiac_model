@@ -55,7 +55,7 @@ def breach_status(at_target: Distribution, target_week: int) -> StatusView:
 
 
 def cicu_status(peak_occupancy: float, beds: float, final_urgent: float) -> StatusView:
-    """Mirror the original capacity criteria: urgent cleared and occupancy within beds."""
+    """Mirror the v1 capacity criteria: urgent cleared and occupancy within beds."""
     if final_urgent == 0 and peak_occupancy <= beds:
         return StatusView("Within capacity", TEAL, "Urgent list cleared; CICU load within beds.")
     if final_urgent == 0:

@@ -1,6 +1,6 @@
 """Synthetic parameter sets for tests, demos and parity runs.
 
-No real patient, referral or cost data: every value is invented to span the original apps'
+No real patient, referral or cost data: every value is invented to span the v1 app's
 slider ranges.
 """
 
@@ -10,14 +10,14 @@ from typing import Any
 
 from cardiac_capacity.ward_referral import DEFAULT_PARAMS
 
-# A live ward as the original app's floor-map editor seeds it: three occupied beds.
+# A live ward as the v1 floor-map editor seeds it: three occupied beds.
 LIVE_WARD: list[dict[str, Any]] = [
     {"cat": 1, "days_remaining": 14},
     {"cat": 2, "days_remaining": 7},
     {"cat": 3, "days_remaining": 3},
 ]
 
-# Ward-referral scenarios spanning the original sliders' ranges (synthetic).
+# Ward-referral scenarios spanning the v1 sliders' ranges (synthetic).
 WARD_SCENARIOS: dict[str, dict[str, Any]] = {
     "default": dict(DEFAULT_PARAMS),
     "baseline": {**DEFAULT_PARAMS, "surg_per_week": 3, "total_beds": 7},

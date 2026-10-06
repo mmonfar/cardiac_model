@@ -9,17 +9,17 @@ Four categories (urgent → routine). Each week: operate in priority order (or b
 weights), deteriorate one category up by rate, add referrals by the category mix, then cost
 the backlog and estimate CICU occupancy as ``sum(backlog * LOS_days / 7)``.
 
-Known quirks kept on purpose (behaviour-preserving port, not a rewrite):
+Known quirks kept on purpose (v1 behaviour, preserved):
 
 - ``weeks`` produces ``weeks + 1`` rows (a week-0 baseline plus weeks 1..N); week 0 has no
   deterioration/referral columns and ``occupancy_warning`` is missing (NaN) there.
-- In ``"weighted"`` mode ``summary["totalSurgeries"]`` stays 0: the original only counts
+- In ``"weighted"`` mode ``summary["totalSurgeries"]`` stays 0: v1 only counts
   surgeries in priority mode. The weekly ``total_surgeries`` column is correct in both modes.
 - An unknown ``scheduling_mode`` falls back to priority order; an unknown rounding method
   falls back to ``round``.
 - ``find_optimal_capacity`` searches capacities 3..14 only.
 
-The original's list defaults are tuples here (never mutated in either version).
+The v1 list defaults are tuples here (never mutated in either version).
 """
 
 from __future__ import annotations
@@ -250,7 +250,7 @@ def find_optimal_capacity(
 
 @dataclass(frozen=True)
 class CicuParams:
-    """Everything but capacity and horizon; defaults are the original's."""
+    """Everything but capacity and horizon; defaults are v1's."""
 
     rounding_method: str = "round"
     initial_backlog: float = 60
@@ -264,7 +264,7 @@ class CicuParams:
 
 
 def recommended_capacity(table: pd.DataFrame) -> int | None:
-    """Smallest capacity meeting the criteria, or ``None`` (the original app showed "8+")."""
+    """Smallest capacity meeting the criteria, or ``None`` (the v1 app showed "8+")."""
     caps = table["capacity"].to_numpy()[table["meetsCriteria"].to_numpy(dtype=bool)]
     return None if caps.size == 0 else int(caps.min())
 
