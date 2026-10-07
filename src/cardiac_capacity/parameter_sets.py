@@ -10,9 +10,8 @@ Two sets, nothing silent:
   source supports a generic factor . Anything the literature cannot source stays on the placeholder and is
   marked "awaiting source" in ``notes``.
 
-Both are proposals awaiting a clinician's check. The package default is unchanged
-(``PLACEHOLDERS``) so v1/v2 callers and pinned tests are untouched; the app page for the new CICU objective
-offers both.
+Both are proposals awaiting a clinician's check. From v2.1 the package and app default is ``LITERATURE``;
+``PLACEHOLDERS`` stays only so v2.0 results can be reproduced. ``custom`` builds a "Your figures" set.
 
 Reading the sourced rates. The literature gives weekly hazards of dying (or losing operability) with NO treatment at
 all (docs/hazard-calibration-output.md). The model's event is "moves up one urgency category", which
@@ -78,7 +77,7 @@ def _hazard(name: str) -> float:
 
 PLACEHOLDERS = ParameterSet(
     name="placeholders",
-    label="Placeholders (v1 category rates, not sourced)",
+    label="Placeholders (not sourced; kept for comparison with v2.0)",
     rates=PLACEHOLDER_RATES,
     cicu=(0.0, 0.05, 0.02, 0.01),  # the CICU mode's own v1 defaults (CicuParams)
     long_wait_or=rg.LONG_WAIT_OR,
@@ -92,14 +91,14 @@ PLACEHOLDERS = ParameterSet(
 
 LITERATURE = ParameterSet(
     name="literature",
-    label="Literature-based (sourced hazards, awaiting clinical check)",
+    label="Published literature (default)",
     rates=(
         _hazard("Complete AVSD"),  # category 2 (emergency): complete AVSD, 2.34 %/wk (weeks 0-26)
         _combine(
             _hazard("Large VSD (death)"), _hazard("Large VSD (loss of operability)")
         ),  # category 3: large VSD, death or loss of operability, 1.23 %/wk
         _hazard("Tetralogy of Fallot (ToF)"),  # category 4: ToF elective window, 0.80 %/wk
-        PLACEHOLDER_RATES[3],  # category 5: awaiting source, v1 placeholder kept
+        0.0,  # category 5 to 4: no published rate, so none is assumed (listed as a data gap)
     ),
     cicu=(
         0.0,
@@ -112,13 +111,28 @@ LITERATURE = ParameterSet(
     status="awaiting clinical check",
     notes=(
         "Category 1 has no rate: its lesions (TGA, TGA+VSD, HLHS, obstructed TAPVC) are deadlines plus a bridge. "
-        "Category 5 to 4 is awaiting source, so the v1 placeholder 0.02 is kept (it sits above the category-4 "
-        "rate; read it as a stress value). Long-wait multiplier 1.0: no published source supports a generic factor."
+        "Category 5 to 4 has no published rate, so none is assumed (0%). Long-wait multiplier 1.0: no published source supports a generic factor."
     ),
 )
 
 SETS: Mapping[str, ParameterSet] = {PLACEHOLDERS.name: PLACEHOLDERS, LITERATURE.name: LITERATURE}
-DEFAULT_SET = PLACEHOLDERS.name  # changed only once the sourced rates have had a clinical check
+DEFAULT_SET = LITERATURE.name  # v2.1: the default is the published-literature set
+
+
+def custom(
+    cat2_to_1: float, cat3_to_2: float, cat4_to_3: float, cat5_to_4: float, long_wait_or: float
+) -> ParameterSet:
+    """The user's own figures (weekly probabilities, 0-1). Clearly labelled, never the default."""
+    return ParameterSet(
+        name="custom",
+        label="Your figures",
+        rates=(cat2_to_1, cat3_to_2, cat4_to_3, cat5_to_4),
+        cicu=(0.0, cat2_to_1, cat3_to_2, cat4_to_3),
+        long_wait_or=long_wait_or,
+        long_wait_weeks=26,
+        status="entered by the user",
+        notes="Figures entered by the user; not checked against any source.",
+    )
 
 
 def get(name: str) -> ParameterSet:

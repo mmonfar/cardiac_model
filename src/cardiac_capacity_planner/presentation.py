@@ -15,10 +15,10 @@ from cardiac_capacity_planner import brand as tokens
 TEAL = tokens.TEAL
 INK = tokens.CANVAS
 
-# NON-BRAND semantic constants. The identity has one accent and no red or amber on
-# purpose; these are this app's own states, kept local. Always paired with a label.
-RED = "#b3402f"
-AMBER = "#c98a1b"
+# The identity has no red or amber: state is carried by the text label, weight and size.
+# These names stay for readability; "RED" is the ink colour and "AMBER" a teal tint.
+RED = tokens.CANVAS
+AMBER = "#60AFAD"
 
 WARD_CATEGORIES = [f"Cat {i}" for i in range(1, 6)]  # 1 = most urgent
 CICU_CATEGORIES = ["Urgent", "Emergency", "Semi-urgent", "Routine"]

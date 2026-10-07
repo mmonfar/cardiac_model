@@ -29,6 +29,73 @@ PLOT_CONFIG = {"displayModeBar": False}
 _MARGIN = {"t": 48, "b": 24, "l": 48, "r": 16}
 
 
+def _axes(fig: go.Figure, x: str, y: str) -> None:
+    """Labelled units on both axes, and room for them."""
+    fig.update_xaxes(title_text=x)
+    fig.update_yaxes(title_text=y)
+    fig.update_layout(margin={**_MARGIN, "b": 56, "l": 64})
+
+
+def list_compare(
+    nothing: tuple[list[int], ...], other: tuple[list[int], ...] | None, other_label: str
+) -> go.Figure:
+    """Waiting list by week: do nothing against the recommended change (median and range)."""
+    fig = go.Figure()
+    for data, name, colour, fill in (
+        (nothing, "If we do nothing", INK_LABEL, "rgba(23, 36, 43, 0.10)"),
+        (other, other_label, tokens.TEAL, BAND),
+    ):
+        if data is None:
+            continue
+        w, med, lo, hi = data
+        fig.add_trace(go.Scatter(x=w, y=hi, line={"width": 0}, hoverinfo="skip", showlegend=False))
+        fig.add_trace(
+            go.Scatter(
+                x=w, y=lo, fill="tonexty", fillcolor=fill, line={"width": 0},
+                hoverinfo="skip", showlegend=False,
+            )
+        )  # fmt: skip
+        fig.add_trace(go.Scatter(x=w, y=med, name=name, line={"color": colour, "width": 3}))
+    fig.update_layout(
+        title="PATIENTS ON THE WAITING LIST, WEEK BY WEEK",
+        height=340, template=TEMPLATE, margin=_MARGIN,
+        legend={"orientation": "h", "y": -0.45},
+    )  # fmt: skip
+    _axes(fig, "Week from today", "Patients waiting")
+    fig.update_layout(margin={**_MARGIN, "b": 110, "l": 64})
+    return fig
+
+
+def option_bars(
+    labels: list[str], values: list[float], lo: list[float], hi: list[float], title: str,
+    y_title: str, highlight: int | None = None, limit: float | None = None, limit_label: str = "",
+) -> go.Figure:  # fmt: skip
+    """One bar per option (median), with the 5th-95th range as a line."""
+    colours = [tokens.TEAL if i == highlight else "#BBDBD8" for i in range(len(values))]
+    fig = go.Figure(
+        go.Bar(
+            x=labels, y=values, marker={"color": colours},
+            error_y={
+                "type": "data", "symmetric": False, "visible": True, "color": INK_LABEL,
+                "array": [h - v for h, v in zip(hi, values, strict=True)],
+                "arrayminus": [v - lo_ for v, lo_ in zip(values, lo, strict=True)],
+            },
+        )
+    )  # fmt: skip
+    fig.add_trace(
+        go.Scatter(
+            x=labels, y=hi, mode="text", hoverinfo="skip", textposition="top center",
+            text=[f"{v:.0f}" for v in values], textfont={"size": 12, "color": "#17242B"},
+        )
+    )  # fmt: skip
+    fig.update_yaxes(rangemode="tozero")
+    if limit is not None:
+        _threshold(fig, limit, limit_label)
+    fig.update_layout(title=title, height=320, template=TEMPLATE, margin=_MARGIN, showlegend=False)
+    _axes(fig, "", y_title)
+    return fig
+
+
 def _threshold(fig: go.Figure, y: float, text: str) -> None:
     fig.add_hline(
         y=y,
@@ -39,7 +106,9 @@ def _threshold(fig: go.Figure, y: float, text: str) -> None:
     )
 
 
-def band_chart(band: pd.DataFrame, title: str, marker_week: int | None = None) -> go.Figure:
+def band_chart(
+    band: pd.DataFrame, title: str, marker_week: int | None = None, y_title: str = "Patients"
+) -> go.Figure:
     """p5–p95 band and p50 line from ``cardiac_capacity.weekly_band``."""
     fig = go.Figure()
     fig.add_trace(
@@ -63,11 +132,16 @@ def band_chart(band: pd.DataFrame, title: str, marker_week: int | None = None) -
     if marker_week is not None:
         fig.add_vline(x=marker_week, line_dash="5px,5px", line_color=THRESHOLD)
     fig.update_layout(title=title, height=320, template=TEMPLATE, margin=_MARGIN, showlegend=False)
+    _axes(fig, "Week", y_title)
     return fig
 
 
 def stacked_backlog(
-    weekly: pd.DataFrame, columns: Sequence[str], labels: Sequence[str], title: str
+    weekly: pd.DataFrame,
+    columns: Sequence[str],
+    labels: Sequence[str],
+    title: str,
+    y_title: str = "Patients waiting",
 ) -> go.Figure:
     fig = go.Figure()
     for col, label, colour in zip(columns, labels, CASCADE, strict=False):
@@ -81,18 +155,28 @@ def stacked_backlog(
                 fillcolor=colour,
             )
         )
-    fig.update_layout(title=title, height=320, template=TEMPLATE, margin=_MARGIN)
+    fig.update_layout(
+        title=title, height=340, template=TEMPLATE, margin=_MARGIN,
+        legend={"orientation": "h", "y": -0.28},
+    )  # fmt: skip
+    _axes(fig, "Week", y_title)
     return fig
 
 
 def line_vs_limit(
-    weekly: pd.DataFrame, column: str, limit: float, title: str, limit_label: str
+    weekly: pd.DataFrame,
+    column: str,
+    limit: float,
+    title: str,
+    limit_label: str,
+    y_title: str = "Beds in use",
 ) -> go.Figure:
     fig = go.Figure(
         go.Scatter(x=weekly["week"], y=weekly[column], line={"color": tokens.TEAL, "width": 3})
     )
     _threshold(fig, limit, limit_label)
     fig.update_layout(title=title, height=300, template=TEMPLATE, margin=_MARGIN, showlegend=False)
+    _axes(fig, "Week", y_title)
     return fig
 
 
@@ -101,13 +185,14 @@ def capacity_search(table: pd.DataFrame, beds: float) -> go.Figure:
     fig = go.Figure(go.Bar(x=table["capacity"], y=table["maxCICU"], marker={"color": colours}))
     _threshold(fig, beds, f"CICU BEDS ({beds:g})")
     fig.update_layout(
-        title="PEAK CICU LOAD BY WEEKLY CAPACITY",
+        title="PEAK CICU BEDS IN USE FOR EACH WEEKLY SURGERY RATE",
         height=300,
         template=TEMPLATE,
         margin=_MARGIN,
         showlegend=False,
         xaxis={"dtick": 1},
     )
+    _axes(fig, "Operations a week", "Peak beds in use")
     return fig
 
 
@@ -153,14 +238,16 @@ def plan_success(rec: CicuRecommendation, threshold: float) -> go.Figure:
         annotation_font_color=INK_LABEL,
     )
     fig.update_layout(
-        title="FUTURES MEETING EVERY CONDITION (%) BY CASES / WEEK",
+        title="HOW OFTEN EACH PLAN WORKS, BY OPERATIONS A WEEK",
         height=300,
         template=TEMPLATE,
         margin=_MARGIN,
         xaxis={"dtick": 1},
         yaxis={"range": [0, 102]},
-        legend={"orientation": "h", "y": -0.25},
+        legend={"orientation": "h", "y": -0.62},
     )
+    _axes(fig, "Operations a week", "Simulated years where the plan works (%)")
+    fig.update_layout(margin={**_MARGIN, "b": 130, "l": 64}, height=360)
     return fig
 
 
@@ -184,11 +271,13 @@ def plan_harm(rec: CicuRecommendation) -> go.Figure:
             )
         )
     fig.update_layout(
-        title="PATIENTS WHO WORSEN A YEAR (PLANS THAT REACH THE THRESHOLD)",
+        title="PATIENTS WHO GET MORE URGENT IN A YEAR, BY OPERATIONS A WEEK",
         height=300,
         template=TEMPLATE,
         margin=_MARGIN,
         xaxis={"dtick": 1},
-        legend={"orientation": "h", "y": -0.2},
+        legend={"orientation": "h", "y": -0.62},
     )
+    _axes(fig, "Operations a week", "Patients who get more urgent")
+    fig.update_layout(margin={**_MARGIN, "b": 130, "l": 64}, height=360)
     return fig

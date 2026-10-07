@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from cardiac_capacity import CicuParams, CicuSimulator, cicu, parameter_sets
+from cardiac_capacity import CicuParams, CicuSimulator, cicu
 from cardiac_capacity import casemix as cm
 from cardiac_capacity import cicu_policy as cp
 from cardiac_capacity import recommend_cicu as rc
@@ -22,10 +22,6 @@ DEFAULTS = CicuParams()
 START_MODES = {
     "today": "From today's waiting list",
     "settled": "From a settled state (warm-up first)",
-}
-RATE_SETS = {
-    "placeholders": "Placeholders (v1 category rates, not sourced), the default",
-    "literature": "Literature-based (sourced hazards, awaiting clinical check)",
 }
 
 
@@ -52,7 +48,7 @@ def current_plan(policy: cp.PolicyParams, slots: int) -> rc.Check:
 
 with st.sidebar:
     ui.section("Operations")
-    capacity = st.slider("Weekly OR capacity", 3, 15, 5)
+    capacity = st.slider("Theatre sessions a week (operations)", 3, 15, 5)
     beds = int(st.number_input("CICU beds", min_value=1, max_value=50, value=10, step=1))
     occupied_now = int(
         st.number_input("Beds occupied today", min_value=0, max_value=50, value=0, step=1)
@@ -88,13 +84,8 @@ with st.sidebar:
                     )
                 else:
                     mix_shares.append(0.0)
+    pset = ui.figures_picker()
     ui.section("Recommendation")
-    rate_key = st.selectbox(
-        "Deterioration rates",
-        list(RATE_SETS),
-        index=0,
-        format_func=lambda k: RATE_SETS[k],
-    )
     target_pct = st.slider("Occupancy target (%)", 50, 100, 85)
     threshold_pct = st.slider("Success threshold (%)", 50, 99, 90)
     consider_surge = st.checkbox("Consider an extra (surge) bed", value=True)
@@ -120,7 +111,6 @@ if use_casemix and sum(mix_shares) <= 0:
     st.error("The lesion case mix must have at least one non-zero share.")
     st.stop()
 
-pset = parameter_sets.get(rate_key)
 params = CicuParams(
     rounding_method=str(rounding),
     initial_backlog=backlog,
@@ -162,12 +152,12 @@ det_status = presentation.cicu_status(peak, beds, final_urgent)
 status = presentation.plan_status(rec, target_pct / 100)
 
 ui.header(
-    "Cardiac capacity · CICU",
-    f"{capacity} cases / week · {beds} CICU beds",
+    "Detail · CICU plan",
+    f"{capacity} operations a week · {beds} CICU beds",
     [
         f"Occupancy target {target_pct}%",
         f"Rates: {pset.label}",
-        "Model v2 · " + START_MODES[start_mode].lower(),
+        START_MODES[start_mode],
         f"{WEEKS}-week horizon",
     ],
     status,
@@ -276,9 +266,17 @@ if consider_surge:
 
 left, right = st.columns(2, gap="large")
 with left:
-    ui.show(charts.plan_success(rec, threshold_pct / 100))
+    ui.show(
+        charts.plan_success(rec, threshold_pct / 100),
+        "Each point is a plan. The higher the point, the more often that plan keeps the list under "
+        "control without overfilling the unit. Plans above the dashed line are good enough.",
+    )
 with right:
-    ui.show(charts.plan_harm(rec))
+    ui.show(
+        charts.plan_harm(rec),
+        "Lower is better. This counts children who get more urgent while waiting. It shows what "
+        "each extra operation a week buys, for the plans that work.",
+    )
 
 with st.expander("Seed check: the plan on 30 other seeds"):
     if rec.seed_check is not None:
@@ -304,7 +302,7 @@ with st.expander("Seed check: the plan on 30 other seeds"):
     else:
         st.caption("No plan to check.")
 
-with st.expander("Where the numbers come from"):
+with st.expander("Settings in use on this page"):
     st.markdown(
         f"- **Deterioration rates ({pset.label}):** "
         + ", ".join(
@@ -319,11 +317,13 @@ with st.expander("Where the numbers come from"):
         "- **Not validated against real data.** Every input is synthetic until you enter your own."
     )
 
-ui.section("Your current plan, deterministic view (v2)")
+ui.sources_panel()
+
+ui.section("Your current plan, expected path")
 c1, c2, c3 = st.columns(3)
 with c1:
     ui.card(
-        "Inherited urgent-only test",
+        "Older urgent-only test",
         "None in 3–14" if recommended is None else f"{recommended} / week",
         "The v1 criterion: clears urgent cases and keeps load within beds. It does not look at the "
         "routine backlog, so it is no longer the recommendation",
@@ -350,8 +350,10 @@ with left:
             weekly,
             [f"cat{i}_closing" for i in range(1, 5)],
             LABELS,
-            "WAITING LIST BY CATEGORY",
-        )
+            "WAITING LIST BY URGENCY, YOUR CURRENT PLAN",
+        ),
+        "Darker bands are the most urgent children. This is the expected path of your current "
+        "plan, not a range.",
     )
 with right:
     ui.show(
@@ -359,11 +361,16 @@ with right:
             weekly,
             "cicu_peak_daily",
             beds,
-            "CICU LOAD · BUSIEST DAY OF EACH WEEK",
+            "CICU BEDS IN USE ON THE BUSIEST DAY OF EACH WEEK",
             f"CICU BEDS ({beds})",
-        )
+        ),
+        "When the line reaches the dashed limit the unit is full and the next operation has to wait.",
     )
-ui.show(charts.capacity_search(table, beds))
+ui.show(
+    charts.capacity_search(table, beds),
+    "Each bar is a weekly surgery rate. Dark bars keep the unit within its beds and clear urgent "
+    "cases; light bars do not. This is the older, simpler test, kept for comparison.",
+)
 
 ui.section("Final backlog per category")
 final = weekly.iloc[-1]
@@ -378,7 +385,7 @@ st.dataframe(
     hide_index=True,
 )
 if show_v1:
-    ui.section("Compare with v1 (previous model)")
+    ui.section("Compare with the previous version (v1)")
     with st.container(border=True):
         sim1 = CicuSimulator(capacity, params)
         peak1 = float(sim1.simulate(WEEKS)["cicu_occupancy"].to_numpy().max())

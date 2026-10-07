@@ -2,6 +2,20 @@
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-10-07
+
+### Changed
+- **First screen is a one-screen decision summary**: what we need to do, what happens if we do nothing (waiting list, cancelled operations, children who get more urgent, over 52 weeks), the effect of each lever (theatre sessions, CICU beds, both), staffing as a limit you enter, and a panel of what the model assumes because data is missing.
+- **Defaults are the published literature.** The planner now starts on the literature figures, each with a DOI in the README table and in the app. "Your figures" can be entered instead and is labelled as such. The earlier placeholder set stays in the code only so version 2.0 results can be reproduced.
+- Stable-to-routine weekly rate is 0% (no published rate; none assumed) instead of a 2% placeholder.
+- Plain titles, labelled axes with units, and a "What this means" line under every chart on all pages. Pages renamed: Decision summary, Detail: ward beds, Detail: CICU plan.
+- Phone-width layout checked at 390 px.
+- README rewritten around the question the tool answers; screenshots added in `docs/screenshots/`.
+
+### Added
+- `cardiac_capacity.evidence`: one list of every default, its source and the gap it stands in for (feeds the README table and the in-app panel).
+- `cardiac_capacity_planner.scenarios`: the comparison and staffing check behind the first screen, with tests.
+
 ## [2.0.0] - 2026-10-05
 
 ### Why (summary of fixes found when checking v1 against its own arithmetic)

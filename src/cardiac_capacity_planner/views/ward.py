@@ -1,3 +1,4 @@
+# ruff: noqa: E501  (plain-language page text)
 """Ward-referral mode: stochastic waiting list, Monte Carlo across seeds."""
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ from cardiac_capacity import (
     Distribution,
     WardReferralSimulator,
     monte_carlo,
-    parameter_sets,
     recommend,
     summarize,
     ward_referral,
@@ -24,10 +24,6 @@ from cardiac_capacity_planner import charts, presentation, ui
 WEEKS = 52
 
 
-RATE_SETS = {
-    "placeholders": "Placeholders (v1 category rates, not sourced), the default",
-    "literature": "Literature-based (sourced hazards, awaiting clinical check)",
-}
 START_MODES = {
     "today": "From today's waiting list",
     "settled": "From a settled state (warm-up first)",
@@ -81,14 +77,10 @@ with st.sidebar:
     ui.section("Capacity")
     slots = st.slider("Surgery slots / week", 1, 12, int(DEFAULT_PARAMS["surg_per_week"]))
     beds = st.slider("Ward beds", 1, 16, int(DEFAULT_PARAMS["total_beds"]))
-    buffer = st.slider("Safety buffer (beds)", 0, 3, int(DEFAULT_PARAMS["safety_buffer"]))
-    ui.section("Deterioration")
-    rate_key = st.selectbox(
-        "Deterioration rates",
-        list(RATE_SETS),
-        index=0,
-        format_func=lambda k: RATE_SETS[k],
+    buffer = st.slider(
+        "Spare beds kept free (safety buffer)", 0, 3, int(DEFAULT_PARAMS["safety_buffer"])
     )
+    pset = ui.figures_picker()
     ui.section("Recommendation")
     threshold_pct = st.slider("Success threshold (%)", 50, 99, 90)
     start_label = st.radio("Start from", list(START_MODES.values()), index=0)
@@ -99,7 +91,7 @@ with st.sidebar:
     n_select = int(
         st.select_slider("Futures simulated per setup", options=[60, 100, 200], value=60)
     )
-    ui.section("Monte Carlo")
+    ui.section("Simulation")
     n_runs = st.select_slider("Runs", options=[10, 20, 50, 100], value=20)
     seed = int(st.number_input("Base seed", min_value=0, max_value=100_000, value=0))
     ui.footnote("Prototype · synthetic parameters")
@@ -117,7 +109,7 @@ params = {
     "surg_per_week": slots,
     "total_beds": beds,
     "safety_buffer": buffer,
-    **parameter_sets.get(rate_key).ward_params(),
+    **pset.ward_params(),
 }
 
 if d1 + d2 + d3 + d4 > 100:
@@ -131,11 +123,11 @@ rec = search(params, target, threshold_pct / 100, start_mode, n_select)
 status = presentation.breach_status(at_target, target)
 
 ui.header(
-    "Cardiac capacity · Ward referral",
-    f"{slots} slots · {beds} beds",
+    "Detail · ward beds",
+    f"{slots} operations a week · {beds} ward beds",
     [
-        f"{n_runs} Monte Carlo runs, seeds {seed}–{seed + n_runs - 1}",
-        "Model v2 · " + START_MODES[start_mode].lower(),
+        f"{n_runs} simulated years",
+        pset.label + " · " + START_MODES[start_mode].lower(),
         f"{refs} referrals / week",
     ],
     status,
@@ -144,24 +136,24 @@ ui.header(
 k1, k2, k3 = st.columns(3)
 with k1:
     ui.card(
-        f"26+ week waits at week {target}",
+        f"Waiting more than 26 weeks at week {target}",
         presentation.band_text(at_target),
-        f"Median (p5–p95) across runs. At week {WEEKS - 1}: "
+        f"Typical year (range across simulated years). At week {WEEKS - 1}: "
         f"<b>{presentation.band_text(final_breach)}</b>",
         status.colour,
     )
 with k2:
     ui.card(
-        f"Cancelled slots over {WEEKS} weeks",
+        f"Operations cancelled over {WEEKS} weeks",
         presentation.band_text(cancellations),
-        "Median (p5–p95): slots with no free bed",
+        "Typical year (range): operations with no free bed",
     )
 with k3:
     if rec.found:
         lo, hi = rec.ci_validate
         ui.card(
-            "Recommended configuration",
-            f"{rec.slots} slots · {rec.beds} beds",
+            "Recommended set-up",
+            f"{rec.slots} operations a week · {rec.beds} beds",
             f"Smallest setup where at least {threshold_pct}% of simulated futures have no "
             f"26+ week waits at week {target}. On {rec.n_validate} fresh runs it did so in "
             f"<b>{100 * rec.p_validate:.0f}%</b> (95% CI {100 * lo:.0f}–{100 * hi:.0f}%)."
@@ -180,8 +172,13 @@ left, right = st.columns(2, gap="large")
 with left:
     ui.show(
         charts.band_chart(
-            weekly_band(runs, "Over_26_Wks"), "PATIENTS WAITING 26+ WEEKS", marker_week=target
-        )
+            weekly_band(runs, "Over_26_Wks"),
+            "PATIENTS WAITING MORE THAN 26 WEEKS",
+            marker_week=target,
+            y_title="Patients",
+        ),
+        "The line is a typical year and the shaded band covers 9 in 10 simulated years. "
+        "The dashed line marks your goal week. The aim is for the line to reach zero by then.",
     )
 with right:
     first = runs[0]
@@ -190,21 +187,26 @@ with right:
             first,
             presentation.WARD_CATEGORIES,
             presentation.WARD_CATEGORIES,
-            f"WAITING LIST BY CATEGORY · SEED {seed}",
-        )
+            "WAITING LIST BY URGENCY, ONE SIMULATED YEAR",
+        ),
+        "Darker bands are the most urgent children. A growing dark band means the most urgent "
+        "cases are not being operated on fast enough. This is one example year, not an average.",
     )
 ui.show(
     charts.line_vs_limit(
         runs[0],
         "occupancy",
         beds - buffer,
-        f"WARD OCCUPANCY · SEED {seed}",
+        "WARD BEDS IN USE, ONE SIMULATED YEAR",
         f"USABLE BEDS ({beds - buffer})",
-    )
+        y_title="Beds in use",
+    ),
+    "When the line touches the dashed limit there is no free bed, so an operation is cancelled. "
+    "Repeated touches mean the ward, not the theatre, is the bottleneck.",
 )
 
 if show_v1:
-    ui.section("Compare with v1 (previous model)")
+    ui.section("Compare with the previous version (v1)")
     with st.container(border=True):
         runs1, _ = run_ensemble(params, n_runs, seed, "v1", "today")
         v1_target = summarize(float(r["Over_26_Wks"].iloc[target]) for r in runs1)
@@ -213,14 +215,14 @@ if show_v1:
         c1, c2, c3 = st.columns(3)
         with c1:
             ui.card(
-                f"v1: 26+ week waits at week {target}",
+                f"v1: Waiting more than 26 weeks at week {target}",
                 presentation.band_text(v1_target),
                 f"Median (p5–p95), same inputs. v2: <b>{presentation.band_text(at_target)}</b>",
             )
         with c2:
             ui.card(
                 "v1 recommendation",
-                f"{s1} slots · {b1} beds",
+                f"{s1} operations a week · {b1} beds",
                 "From a single simulated run (seed 42); beds were released once a week",
             )
         with c3:
@@ -230,8 +232,9 @@ if show_v1:
                 f"No 26+ week waits at week {target} in {k1} of {n1} fresh v2 runs. "
                 "v2 frees beds on the discharge day and follows each patient's own category.",
             )
+ui.sources_panel()
 ui.footnote(
     "Prototype on synthetic parameters, not validated against real data. The model shows a "
-    "range of outcomes, not a forecast. Deterioration rates are placeholders until a clinician "
-    "checks them."
+    "range of outcomes, not a forecast. The figures behind patients getting more urgent are published rates "
+    "awaiting a clinician's check, or your own."
 )

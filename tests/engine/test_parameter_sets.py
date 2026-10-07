@@ -22,7 +22,7 @@ def test_placeholders_are_what_v2_shipped() -> None:
     assert ps.PLACEHOLDERS.rates == w2.DET_DEFAULTS
     assert ps.PLACEHOLDERS.long_wait_or == w2.LONG_WAIT_OR_DEFAULT == 1.49
     assert ps.PLACEHOLDERS.cicu_rates() == (0.0, 0.05, 0.02, 0.01)
-    assert ps.DEFAULT_SET == "placeholders"  # default unchanged until a clinical check
+    assert ps.DEFAULT_SET == "literature"  # v2.1: the default is the published-literature set
 
 
 def test_literature_rates_are_the_sourced_hazards() -> None:
@@ -32,9 +32,9 @@ def test_literature_rates_are_the_sourced_hazards() -> None:
         1 - (1 - 0.0020) * (1 - 0.0103)
     )  # large VSD death or loss of operability
     assert r[2] == 0.0080  # ToF
-    assert r[3] == 0.02  # category 5 to 4: awaiting source, placeholder kept
+    assert r[3] == 0.0  # category 5 to 4: no published rate, none assumed
     assert ps.LITERATURE.long_wait_or == 1.0
-    assert "awaiting" in ps.LITERATURE.notes
+    assert "no published" in ps.LITERATURE.notes
     assert ps.LITERATURE.cicu_rates() == (0.0, r[0], r[1], r[2])
 
 

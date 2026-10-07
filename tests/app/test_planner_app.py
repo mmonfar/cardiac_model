@@ -26,8 +26,11 @@ from cardiac_capacity import (
 from cardiac_capacity.ward_referral import DEFAULT_PARAMS
 from cardiac_capacity_planner import presentation
 
+W_DEFAULT = {**DEFAULT_PARAMS, **parameter_sets.LITERATURE.ward_params()}
+
 APP = Path(__file__).resolve().parents[2] / "src" / "cardiac_capacity_planner" / "app.py"
 CICU_PAGE = "views/cicu.py"
+WARD_PAGE = "views/ward.py"
 
 
 def run(at: AppTest | None = None) -> AppTest:
@@ -39,6 +42,12 @@ def run(at: AppTest | None = None) -> AppTest:
 
 def page_html(at: AppTest) -> str:
     return "\n".join(str(m.value) for m in at.markdown)
+
+
+def ward_run(at: AppTest | None = None) -> AppTest:
+    at = run(at)
+    at.switch_page(WARD_PAGE)
+    return run(at)
 
 
 def cicu_run(at: AppTest | None = None) -> AppTest:
@@ -74,7 +83,7 @@ def select(at: AppTest, label: str):
 
 @pytest.fixture(scope="module")
 def ward_default() -> AppTest:
-    return run()
+    return ward_run()
 
 
 @pytest.fixture(scope="module")
@@ -86,7 +95,7 @@ def cicu_default() -> AppTest:
 
 
 def test_ward_is_default_page_with_three_charts(ward_default: AppTest) -> None:
-    assert "Cardiac capacity · Ward referral" in page_html(ward_default)
+    assert "Detail · ward beds" in page_html(ward_default)
     assert len(ward_default.get("plotly_chart")) == 3
 
 
@@ -97,61 +106,70 @@ def test_brand_is_applied(ward_default: AppTest) -> None:
 
 
 def test_ward_default_numbers_are_the_engines(ward_default: AppTest) -> None:
-    at_target, rec = ward_expected(dict(DEFAULT_PARAMS))
+    at_target, rec = ward_expected(W_DEFAULT)
     html = page_html(ward_default)
-    assert "Model v2" in html
     assert presentation.band_text(at_target) in html
-    assert f"{rec.slots} slots · {rec.beds} beds" in html
+    assert f"{rec.slots} operations a week · {rec.beds} beds" in html
     assert "at least 90% of simulated futures" in html
     assert f"<b>{100 * rec.p_validate:.0f}%</b>" in html  # out-of-sample success rate
     assert f"<b>{presentation.breach_status(at_target, 26).label}</b>" in html
 
 
 def test_ward_v1_comparison_is_off_by_default_and_optional(ward_default: AppTest) -> None:
-    assert "Compare with v1 (previous model)" not in page_html(ward_default)
-    at = run()
+    assert "Compare with the previous version (v1)" not in page_html(ward_default)
+    at = ward_run()
     next(c for c in at.checkbox if c.label == "Show the v1 comparison").set_value(True)
     run(at)
     html = page_html(at)
-    assert "Compare with v1 (previous model)" in html
-    s1, b1 = ward_referral.find_recommendation(dict(DEFAULT_PARAMS), 26)
-    assert f"{s1} slots · {b1} beds" in html
-    runs1, _ = monte_carlo(WardReferralSimulator(dict(DEFAULT_PARAMS)), 52, n=20, seed=0)
+    assert "Compare with the previous version (v1)" in html
+    s1, b1 = ward_referral.find_recommendation(W_DEFAULT, 26)
+    assert f"{s1} operations a week · {b1} beds" in html
+    runs1, _ = monte_carlo(WardReferralSimulator(W_DEFAULT), 52, n=20, seed=0)
     v1_target = summarize(float(r["Over_26_Wks"].iloc[26]) for r in runs1)
-    assert "v1: 26+ week waits at week 26" in html
+    assert "v1: Waiting more than 26 weeks at week 26" in html
     assert presentation.band_text(v1_target) in html
 
 
 def test_ward_threshold_is_adjustable() -> None:
-    at = run()
+    at = ward_run()
     slider(at, "Success threshold (%)").set_value(70)
     run(at)
-    _, rec = ward_expected(dict(DEFAULT_PARAMS), threshold=0.7)
+    _, rec = ward_expected(W_DEFAULT, threshold=0.7)
     html = page_html(at)
     assert "at least 70% of simulated futures" in html
-    assert f"{rec.slots} slots · {rec.beds} beds" in html
+    assert f"{rec.slots} operations a week · {rec.beds} beds" in html
 
 
 def test_ward_settled_start_mode() -> None:
-    at = run()
-    at.radio[0].set_value("From a settled state (warm-up first)")
+    at = ward_run()
+    at.radio[1].set_value("From a settled state (warm-up first)")
     run(at)
-    at_target, rec = ward_expected(dict(DEFAULT_PARAMS), start_mode="settled")
+    at_target, rec = ward_expected(W_DEFAULT, start_mode="settled")
     html = page_html(at)
     assert "from a settled state (warm-up first)" in html
     assert presentation.band_text(at_target) in html
-    assert f"{rec.slots} slots · {rec.beds} beds" in html
+    assert f"{rec.slots} operations a week · {rec.beds} beds" in html
 
 
-def test_ward_rate_set_selector_is_wired_to_the_engine() -> None:
-    at = run()
-    at.selectbox[0].set_value("literature")
+def test_ward_your_figures_are_wired_to_the_engine() -> None:
+    at = ward_run()
+    at.radio[0].set_value("custom")
     run(at)
-    params = {**DEFAULT_PARAMS, **parameter_sets.LITERATURE.ward_params()}
+    for label, v in (
+        ("Urgent to life-threatening (% a week)", 12.0),
+        ("Semi-urgent to urgent (% a week)", 7.0),
+        ("Routine to semi-urgent (% a week)", 4.0),
+        ("Stable to routine (% a week; ward model only)", 2.0),
+        ("Extra risk after 26 weeks waiting (multiplier)", 1.49),
+    ):
+        number(at, label).set_value(v)
+    run(at)
+    params = {**DEFAULT_PARAMS, **parameter_sets.PLACEHOLDERS.ward_params()}
     at_target, rec = ward_expected(params)
     html = page_html(at)
+    assert "Your figures" in html
     assert presentation.band_text(at_target) in html
-    assert f"{rec.slots} slots · {rec.beds} beds" in html
+    assert f"{rec.slots} operations a week · {rec.beds} beds" in html
 
 
 def test_no_ai_or_certainty_wording_in_either_page(
@@ -165,33 +183,33 @@ def test_no_ai_or_certainty_wording_in_either_page(
 
 @pytest.mark.parametrize(("slots", "beds", "target"), [(10, 16, 20), (2, 4, 30), (6, 12, 12)])
 def test_ward_follows_controls(slots: int, beds: int, target: int) -> None:
-    at = run()
+    at = ward_run()
     slider(at, "Surgery slots / week").set_value(slots)
     slider(at, "Ward beds").set_value(beds)
     slider(at, "Stabilisation goal (week)").set_value(target)
     run(at)
-    params = {**DEFAULT_PARAMS, "surg_per_week": slots, "total_beds": beds}
+    params = {**W_DEFAULT, "surg_per_week": slots, "total_beds": beds}
     at_target, rec = ward_expected(params, target)
     html = page_html(at)
     assert f"26+ week waits at week {target}" in html
     assert presentation.band_text(at_target) in html
-    assert f"{rec.slots} slots · {rec.beds} beds" in html
+    assert f"{rec.slots} operations a week · {rec.beds} beds" in html
     assert f"<b>{presentation.breach_status(at_target, target).label}</b>" in html
 
 
 def test_ward_seed_and_runs_change_the_ensemble() -> None:
-    at = run()
+    at = ward_run()
     number(at, "Base seed").set_value(100)
     select(at, "Runs").set_value(50)
     run(at)
-    at_target, _ = ward_expected(dict(DEFAULT_PARAMS), n=50, seed=100)
+    at_target, _ = ward_expected(W_DEFAULT, n=50, seed=100)
     html = page_html(at)
-    assert "50 Monte Carlo runs, seeds 100–149" in html
+    assert "50 simulated years" in html
     assert presentation.band_text(at_target) in html
 
 
 def test_ward_rejects_mix_over_100() -> None:
-    at = run()
+    at = ward_run()
     slider(at, "Cat 1 (most urgent)").set_value(90)
     run(at)
     assert at.error and "exceeds 100" in at.error[0].value
@@ -199,11 +217,11 @@ def test_ward_rejects_mix_over_100() -> None:
 
 # ── CICU ────────────────────────────────────────────────────────────────────────────────
 
-DEF = parameter_sets.PLACEHOLDERS
+DEF = parameter_sets.LITERATURE
 
 
 def cicu_policy_expected(**kw: object) -> cicu_policy.PolicyParams:
-    """The policy the page builds at its defaults (placeholder rates, 85%, today's list)."""
+    """The policy the page builds at its defaults (literature rates, 85%, today's list)."""
     mix = [0.05, 0.15, 0.3, 0.5]
     total = sum(mix)
     if total != 1.0:
@@ -236,7 +254,7 @@ def cicu_expected(policy: cicu_policy.PolicyParams, threshold: float = 0.9, n_se
 
 def test_cicu_page_renders_five_charts(cicu_default: AppTest) -> None:
     html = page_html(cicu_default)
-    assert "Cardiac capacity · CICU" in html
+    assert "Detail · CICU plan" in html
     assert 'class="mm-dot"' in html
     assert len(cicu_default.get("plotly_chart")) == 5
 
@@ -268,19 +286,19 @@ def test_cicu_deterministic_panel_matches_engine(cicu_default: AppTest) -> None:
     peak = float(sim.simulate()["cicu_peak_daily"].to_numpy().max())
     recommended = cicu.recommended_capacity(sim.capacity_table())
     html = page_html(cicu_default)
-    assert "Inherited urgent-only test" in html
+    assert "Older urgent-only test" in html
     assert f"{recommended} / week" in html
     assert f"{peak:.1f}" in html
     assert f"{float(summary['totalCost']):,.0f} cost units" in html
 
 
 def test_cicu_v1_comparison_is_off_by_default_and_optional(cicu_default: AppTest) -> None:
-    assert "Compare with v1 (previous model)" not in page_html(cicu_default)
+    assert "Compare with the previous version (v1)" not in page_html(cicu_default)
     at = cicu_run()
     next(c for c in at.checkbox if c.label == "Show the v1 comparison").set_value(True)
     run(at)
     html = page_html(at)
-    assert "Compare with v1 (previous model)" in html
+    assert "Compare with the previous version (v1)" in html
     params = CicuParams(deterioration_rates=DEF.cicu_rates())
     v1_peak = float(CicuSimulator(5, params).simulate()["cicu_occupancy"].to_numpy().max())
     assert f"{v1_peak:.1f}" in html
@@ -323,18 +341,33 @@ def test_cicu_surge_can_be_switched_off() -> None:
     assert "Open it" not in html
 
 
-def test_cicu_rate_set_can_be_switched() -> None:
+def test_cicu_your_figures_can_be_entered() -> None:
     at = cicu_run()
-    at.selectbox[1].set_value("literature")
+    at.radio[1].set_value("custom")
     run(at)
-    pset = parameter_sets.LITERATURE
+    for label, v in (
+        ("Urgent to life-threatening (% a week)", 5.0),
+        ("Semi-urgent to urgent (% a week)", 2.0),
+        ("Routine to semi-urgent (% a week)", 1.0),
+        ("Extra risk after 26 weeks waiting (multiplier)", 1.49),
+    ):
+        number(at, label).set_value(v)
+    run(at)
+    pset = parameter_sets.PLACEHOLDERS
     policy = cicu_policy_expected(
         deterioration_rates=pset.cicu_rates(), long_wait_or=pset.long_wait_or
     )
     rec = cicu_expected(policy)
     html = page_html(at)
-    assert "Rates: Literature-based (sourced hazards, awaiting clinical check)" in html
+    assert "Rates: Your figures" in html
     assert recommend_cicu.plain_words(rec, policy) in html
+
+
+def test_literature_is_the_default_everywhere(ward_default: AppTest, cicu_default: AppTest) -> None:
+    assert ward_default.radio[0].value == "literature"
+    assert cicu_default.radio[1].value == "literature"
+    assert "Rates: Published literature (default)" in page_html(cicu_default)
+    assert parameter_sets.DEFAULT_SET == "literature"
 
 
 def test_cicu_case_mix_toggle() -> None:
@@ -366,7 +399,7 @@ def test_cicu_follows_mode_and_rounding(mode: str, rounding: str) -> None:
     at = cicu_run()
     at.selectbox[0].set_value(mode)
     at.radio[0].set_value(rounding)
-    slider(at, "Weekly OR capacity").set_value(8)
+    slider(at, "Theatre sessions a week (operations)").set_value(8)
     run(at)
     params = CicuParams(
         rounding_method=rounding, scheduling_mode=mode, deterioration_rates=DEF.cicu_rates()

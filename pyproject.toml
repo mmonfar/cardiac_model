@@ -1,6 +1,6 @@
 [project]
 name = "cardiac-model"
-version = "2.0.0"
+version = "2.1.0"
 description = "Cardiac surgery capacity planner: ward-referral and CICU modes, seeded Monte Carlo, synthetic data only."
 readme = "README.md"
 requires-python = ">=3.11"

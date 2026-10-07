@@ -27,7 +27,7 @@ from cardiac_capacity.montecarlo import Distribution, rng, run, summarize, weekl
 from cardiac_capacity.protocol import CapacitySimulator, monte_carlo
 from cardiac_capacity.ward_referral import WardReferralSimulator
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 __all__ = [
     "CapacitySimulator",
