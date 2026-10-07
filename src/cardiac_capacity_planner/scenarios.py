@@ -41,6 +41,8 @@ class Outcome:
     occupancy: float
     over_26_end: float
     p_list_shrinks: float
+    weeks_at_limit: float  # share of weeks the beds open to planned operations were all taken
+    elective_beds: int  # beds open to planned operations (the comfortable level x beds)
     cat1_waits: float  # share of runs where a life-threatening case waited for a bed
     staffing: str
     staffing_ok: bool
@@ -87,6 +89,20 @@ def staffing_check(
     return "Needs " + " and ".join(parts), False, ds, db
 
 
+def _weeks_at_limit(pol: cp.PolicyParams, n: int = 20) -> float:
+    """Share of weeks in which the beds open to planned operations were all taken at some point.
+
+    Planned operations are cancelled when those beds are full, even if average occupancy is low.
+    """
+    hit = 0
+    total = 0
+    for i in range(n):
+        f = cp.run_frame(pol, WEEKS, SEED0 + i).dropna(subset=["occupancy_peak"])
+        hit += int((f["occupancy_peak"] >= pol.elective_limit - 1e-9).sum())
+        total += len(f)
+    return hit / total if total else 0.0
+
+
 def evaluate(
     base: cp.PolicyParams, opt: Option, staffed_sessions: int, staffed_beds: int
 ) -> Outcome:
@@ -111,6 +127,8 @@ def evaluate(
         occupancy=float(np.median(arr("mean_occupancy"))),
         over_26_end=float(np.median(arr("over_26_end"))),
         p_list_shrinks=float(np.mean(end <= arr("list_start"))),
+        weeks_at_limit=_weeks_at_limit(pol),
+        elective_beds=pol.elective_limit,
         cat1_waits=float(np.mean(arr("cat1_unserved_days") > 0)),
         staffing=text,
         staffing_ok=ok,
@@ -119,18 +137,46 @@ def evaluate(
     )
 
 
-def recommend(outcomes: list[Outcome]) -> Outcome | None:
-    """The smallest change that stops the list growing; staffing-ok changes first.
+CANCEL_TOLERANCE = 2  # extra cancelled operations a year that still count as "no worse"
 
-    Order of preference is the order of ``options`` (sessions, then beds, then both), and an
-    option inside the staffing cap wins over one outside it. ``None`` if nothing helps.
+
+def cancels_ok(now: Outcome, o: Outcome) -> bool:
+    """True if the option does not raise cancellations above do-nothing (plus the tolerance)."""
+    return o.cancelled <= now.cancelled + CANCEL_TOLERANCE
+
+
+def recommend(outcomes: list[Outcome]) -> Outcome | None:
+    """The smallest change that stops the list growing without raising cancellations.
+
+    Order of preference is the order of ``options`` (sessions, beds, both); an option inside the
+    staffing cap wins over one outside it. If every list-stopping option raises cancellations
+    above do-nothing (by more than ``CANCEL_TOLERANCE``), the one with the fewest cancellations is
+    recommended and ``tradeoff`` names the cost. ``None`` if nothing stops the list growing.
     """
-    levers = outcomes[1:]
-    helps = [o for o in levers if o.stops_growth]
-    inside = [o for o in helps if o.staffing_ok]
-    if inside:
-        return inside[0]
-    return helps[0] if helps else None
+    now = outcomes[0]
+    helps = [o for o in outcomes[1:] if o.stops_growth]
+    if not helps:
+        return None
+    clean = [o for o in helps if cancels_ok(now, o)]
+    pool = clean or sorted(helps, key=lambda o: (o.cancelled, o.list_end))[:1]
+    inside = [o for o in pool if o.staffing_ok]
+    return (inside or pool)[0]
+
+
+def tradeoff(outcomes: list[Outcome], pick: Outcome) -> str:
+    """Plain-language trade-off when the recommendation raises cancellations, else empty."""
+    now = outcomes[0]
+    if cancels_ok(now, pick):
+        return ""
+    text = (
+        f"This also raises cancelled operations from {now.cancelled:.0f} to {pick.cancelled:.0f} "
+        "a year, because the beds become the limit."
+    )
+    safer = [o for o in outcomes[1:] if o is not pick and o.stops_growth and cancels_ok(now, o)]
+    if safer:
+        o = safer[0]
+        text += f" {o.option.label} keeps cancellations at {o.cancelled:.0f}."
+    return text
 
 
 def weekly_list(base: cp.PolicyParams, opt: Option, n: int = 40) -> tuple[list[int], ...]:

@@ -251,7 +251,7 @@ class WardReferralSimulator:
 
     params: Mapping[str, Any] = field(default_factory=lambda: dict(DEFAULT_PARAMS))
     current_ward: Sequence[Mapping[str, Any]] = ()
-    model_version: str = "v1"  # "v1" is pinned; "v2" is ``ward_referral_v2`` 
+    model_version: str = "v1"  # "v1" is pinned; "v2" is ``ward_referral_v2``
     start_mode: str = "today"  # v2 only: "today" or "settled"
     warmup_weeks: int = 52  # v2 only, settled start
 

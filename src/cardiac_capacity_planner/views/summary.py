@@ -84,10 +84,16 @@ elif pick is None:
 else:
     headline = f"{pick.option.label}."
     because = (
-        f"This is the smallest change tested that stops the list growing. The list goes from {pick.list_start:.0f} to about "
+        f"This is the smallest change tested that stops the list growing without adding cancellations (more than 2 a year) where one exists. The list goes from {pick.list_start:.0f} to about "
         f"<b>{pick.list_end:.0f}</b> over 52 weeks, instead of <b>{now.list_end:.0f}</b> if we do nothing. "
         f"Children who get more urgent while waiting change from about {now.worsen:.0f} to {pick.worsen:.0f}. "
     )
+    trade = scenarios.tradeoff(outs, pick)
+    because += (
+        f"Cancelled operations: {now.cancelled:.0f} now, {pick.cancelled:.0f} with this change. "
+    )
+    if trade:
+        because += f"<b>Trade-off:</b> {trade} "
     if pick.staffing_ok and staffed_sessions <= 0 and staffed_beds <= 0:
         because += "You have not entered a staffing limit, so staffing is not yet shown as a constraint (left panel)."
     elif pick.staffing_ok:
@@ -119,7 +125,7 @@ ui.kpis(
         (
             f"{100 * now.occupancy:.0f}%",
             "Average CICU occupancy",
-            f"Comfortable level you set: {target_pct}%",
+            f"Beds for planned operations ({now.elective_beds} of {beds}) all taken in <b>{100 * now.weeks_at_limit:.0f}%</b> of weeks",
         ),
     ]
 )
@@ -129,7 +135,7 @@ ui.section("What each lever does, and what staffing allows")
 head = (
     "<tr><th>Option</th><th>Children waiting at week 52</th><th>Operations cancelled</th>"
     "<th>Children who get more urgent</th><th>Chance the list is shorter</th>"
-    "<th>CICU occupancy</th><th>Staffing</th></tr>"
+    "<th>CICU occupancy (average · weeks planned-surgery beds full)</th><th>Staffing</th></tr>"
 )
 rows = ""
 for o in outs:
@@ -140,7 +146,7 @@ for o in outs:
         f"<tr{cls}><td data-label='Option'>{escape(o.option.label)}{mark}</td>"
         f'<td class="num" data-label="Children waiting at week 52">{o.list_end:.0f} <span style="color:#6E7B80">({o.list_end_lo:.0f} to {o.list_end_hi:.0f})</span></td>'
         f'<td class="num" data-label="Operations cancelled">{o.cancelled:.0f}</td><td class="num" data-label="Children who get more urgent">{o.worsen:.0f}</td>'
-        f'<td class="num" data-label="Chance the list is shorter">{100 * o.p_list_shrinks:.0f}%</td><td class="num" data-label="CICU occupancy">{100 * o.occupancy:.0f}%</td>'
+        f'<td class="num" data-label="Chance the list is shorter">{100 * o.p_list_shrinks:.0f}%</td><td class="num" data-label="CICU occupancy (average · weeks planned-surgery beds full)">{100 * o.occupancy:.0f}% · {100 * o.weeks_at_limit:.0f}%</td>'
         f"<td data-label='Staffing'>{escape(o.staffing)}</td></tr>"
     )
 st.markdown(
@@ -179,20 +185,20 @@ with right:
     )
 left, right = st.columns(2, gap="large")
 with left:
-    occ = [100 * o.occupancy for o in outs]
+    over = [100 * o.weeks_at_limit for o in outs]
     ui.show(
         charts.option_bars(
             labels,
-            occ,
-            occ,
-            occ,
-            "AVERAGE CICU OCCUPANCY (%)",
-            "Beds in use (%)",
+            over,
+            over,
+            over,
+            "WEEKS WHEN THE BEDS FOR PLANNED OPERATIONS WERE ALL TAKEN (%)",
+            "Weeks (%)",
             highlight=highlight,
-            limit=float(target_pct),
-            limit_label=f"COMFORTABLE LEVEL ({target_pct}%)",
         ),
-        "More operations keep the same beds full for longer. Above the dashed line, a life-threatening case is more likely to meet a full unit.",
+        f"The unit keeps {100 - target_pct}% of its beds free for emergencies, so planned operations can use only "
+        f"{now.elective_beds} of {beds}. When those are taken an operation is cancelled even though the average "
+        "occupancy looks low. Read this chart next to the cancellations chart.",
     )
 with right:
     can = [o.cancelled for o in outs]

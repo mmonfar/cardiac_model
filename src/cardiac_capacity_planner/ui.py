@@ -35,6 +35,7 @@ CSS = """
                      margin: 12px 0 auto; }
   .ccp-card .context { color: var(--mm-ink-2); font-size: 14px; border-top: 1px solid
                        var(--mm-rule); padding-top: 10px; margin-top: 14px; }
+  [data-testid="stToolbar"], [data-testid="stDeployButton"], #MainMenu { display: none !important; }
   .ccp-side .mm-wordmark { font-size: 30px; }
   .ccp-band { background: #17242B; color: #FDFBF7; padding: 18px 24px; margin-bottom: 18px;
               display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }

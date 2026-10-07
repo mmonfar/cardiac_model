@@ -275,7 +275,7 @@ class CicuSimulator:
 
     capacity: int = 5
     params: CicuParams = CicuParams()
-    model_version: str = "v1"  # "v1" is pinned; "v2" = occupancy from operated patients 
+    model_version: str = "v1"  # "v1" is pinned; "v2" = occupancy from operated patients
 
     @property
     def mode(self) -> str:

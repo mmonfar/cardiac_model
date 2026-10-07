@@ -58,7 +58,7 @@ def list_compare(
         fig.add_trace(go.Scatter(x=w, y=med, name=name, line={"color": colour, "width": 3}))
     fig.update_layout(
         title="PATIENTS ON THE WAITING LIST, WEEK BY WEEK",
-        height=340, template=TEMPLATE, margin=_MARGIN,
+        height=460, template=TEMPLATE, margin=_MARGIN,
         legend={"orientation": "h", "y": -0.45},
     )  # fmt: skip
     _axes(fig, "Week from today", "Patients waiting")

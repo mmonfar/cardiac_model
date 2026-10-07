@@ -80,3 +80,46 @@ def test_recommendation_prefers_an_option_inside_staffing() -> None:
         or pick2.staffing_ok
         or not any(o.staffing_ok and o.stops_growth for o in capped[1:])
     )
+
+
+def _outcome(opt: scenarios.Option, end: float, cancelled: float) -> scenarios.Outcome:
+    return scenarios.Outcome(
+        option=opt, list_start=60, list_end=end, list_end_lo=end, list_end_hi=end,
+        cancelled=cancelled, worsen=10, worsen_lo=5, worsen_hi=15, occupancy=0.5,
+        over_26_end=0, p_list_shrinks=1.0, weeks_at_limit=0.3, elective_beds=8, cat1_waits=0.0,
+        staffing="Not set (not limiting)", staffing_ok=True,
+        extra_sessions_needed=0, extra_beds_needed=0,
+    )  # fmt: skip
+
+
+def test_recommendation_skips_option_that_raises_cancellations() -> None:
+    o = scenarios.options(5, 10, 2)
+    outs = [
+        _outcome(o[0], 110, 7),  # do nothing: list grows
+        _outcome(o[1], 24, 26),  # stops growth, but cancellations 7 -> 26
+        _outcome(o[2], 103, 2),  # does not stop growth
+        _outcome(o[3], 6, 7),  # stops growth, cancellations unchanged
+    ]
+    pick = scenarios.recommend(outs)
+    assert pick is outs[3]
+    assert scenarios.tradeoff(outs, pick) == ""
+
+
+def test_recommendation_names_the_tradeoff_when_nothing_avoids_it() -> None:
+    o = scenarios.options(5, 10, 2)
+    outs = [
+        _outcome(o[0], 110, 7),
+        _outcome(o[1], 24, 26),
+        _outcome(o[2], 103, 2),
+        _outcome(o[3], 20, 30),
+    ]
+    pick = scenarios.recommend(outs)
+    assert pick is outs[1]  # fewest cancellations among those that stop the list growing
+    text = scenarios.tradeoff(outs, pick)
+    assert "from 7 to 26" in text and "beds become the limit" in text
+
+
+def test_summary_page_states_cancellations_and_days_full(summary: AppTest) -> None:
+    html = _html(summary)
+    assert "Cancelled operations:" in html
+    assert "weeks planned-surgery beds full" in html

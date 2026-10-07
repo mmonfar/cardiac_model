@@ -12,6 +12,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 - Phone-width layout checked at 390 px.
 - README rewritten around the question the tool answers; screenshots added in `docs/screenshots/`.
 
+- The recommendation avoids options that raise cancelled operations (tolerance 2 a year) and states the trade-off when none can; the table and chart show days with every CICU bed full next to average occupancy; the Streamlit toolbar and Deploy button are hidden.
+
 ### Added
 - `cardiac_capacity.evidence`: one list of every default, its source and the gap it stands in for (feeds the README table and the in-app panel).
 - `cardiac_capacity_planner.scenarios`: the comparison and staffing check behind the first screen, with tests.

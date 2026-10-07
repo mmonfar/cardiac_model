@@ -12,7 +12,7 @@ What happens to the cardiac waiting list if we add theatre time, beds or staff? 
 
 Open the app and the first screen answers four questions without any set-up:
 
-1. **What do we need to do?** The smallest change tested that stops the waiting list growing, in one sentence.
+1. **What do we need to do?** The smallest change tested that stops the waiting list growing without adding cancelled operations, in one sentence. If every such change adds cancellations, it names the trade-off.
 2. **What if we do nothing?** The waiting list, operations cancelled for lack of a bed, and children who get more urgent while waiting, over the next 52 weeks.
 3. **What does each lever do?** Extra theatre sessions, extra CICU beds, or both, side by side, with the effect of each.
 4. **What does staffing allow?** Enter how many theatre sessions and CICU beds your staff can cover. Any option that needs more is marked as needing more staff.
