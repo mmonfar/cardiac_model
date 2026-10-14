@@ -2,6 +2,12 @@
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.2.3] - 2026-10-14
+
+### Fixed
+- **One logo, top left.** The wordmark showed twice on desktop (side panel and headline bar) and not at all on a phone. It is now a single image in Streamlit's logo slot, top left, on every screen size; the headline bar no longer carries it. A test fails if the wordmark is added anywhere else.
+- **Phone: the inputs can be opened again.** The style that hid Streamlit's toolbar also hid the button that opens the side panel on a phone. Only the toolbar menu is hidden now.
+
 ## [2.2.2] - 2026-10-12
 
 ### Fixed

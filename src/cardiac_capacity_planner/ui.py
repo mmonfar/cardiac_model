@@ -8,6 +8,7 @@ radius).
 from __future__ import annotations
 
 from html import escape
+from pathlib import Path
 
 import streamlit as st
 
@@ -38,11 +39,9 @@ CSS = """
   div[data-testid="stElementContainer"]:has(.ccp-band) { position: sticky; top: 0; z-index: 99; }
   .ccp-band .stats { font-size: 14px; font-weight: 600; margin-top: 4px; }
   .block-container { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
-  [data-testid="stToolbar"], [data-testid="stDeployButton"], #MainMenu { display: none !important; }
-  .ccp-side .mm-wordmark { font-size: 30px; }
+  [data-testid="stToolbarActions"], [data-testid="stMainMenu"], [data-testid="stDeployButton"], #MainMenu { display: none !important; }
   .ccp-band { background: #17242B; color: #FDFBF7; padding: 18px 24px; margin-bottom: 18px;
               display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
-  .ccp-band .mm-wordmark { font-size: 26px; color: #FDFBF7; }
   .ccp-band h1 { font: 800 1.45rem/1.15 var(--mm-font-display); letter-spacing: -0.03em;
                  color: #FDFBF7; margin: 0; padding: 0; }
   .ccp-band .sub { font: 500 11px var(--mm-font-label); letter-spacing: 0.14em;
@@ -79,7 +78,7 @@ CSS = """
   .ccp-gaps li { margin: 6px 0; font-size: 14px; line-height: 1.45; }
   @media (max-width: 640px) {
     .ccp-band { padding: 8px 12px; margin-bottom: 8px; gap: 2px 10px; }
-    .ccp-band .mm-wordmark, .ccp-band .sub { display: none; }
+    .ccp-band .sub { display: none; }
     .ccp-band h1 { font-size: 0.95rem; }
     .ccp-band .stats { font-size: 12px; margin-top: 2px; }
     .ccp-do { padding: 12px 14px; margin-bottom: 10px; }
@@ -107,12 +106,15 @@ CSS = """
 """
 
 
+WORDMARK = Path(__file__).resolve().parent / "brand" / "wordmark.svg"
+
+
 def sidebar_brand() -> None:
-    st.sidebar.markdown(
-        '<div class="ccp-side mm-on-light"><span class="mm-wordmark">mmonfar'
-        '<span class="mm-dot"></span></span></div>',
-        unsafe_allow_html=True,
-    )
+    """The one and only wordmark: Streamlit's logo slot, top left, above the page menu.
+
+    Never repeat the wordmark in page content or the headline bar (tests pin this).
+    """
+    st.logo(str(WORDMARK), size="large")
 
 
 def section(label: str) -> None:
@@ -168,7 +170,7 @@ def band(title: str, sub: str, stats: str = "") -> None:
     """The sticky headline bar: stays in view on every page while scrolling."""
     extra = f'<div class="stats">{escape(stats)}</div>' if stats else ""
     st.markdown(
-        f"""<div class="ccp-band"><span class="mm-wordmark">mmonfar<span class="mm-dot"></span></span>
+        f"""<div class="ccp-band">
 <div><h1>{escape(title)}</h1><div class="sub">{escape(sub)}</div>{extra}</div></div>""",
         unsafe_allow_html=True,
     )

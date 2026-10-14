@@ -25,7 +25,7 @@ from cardiac_capacity import (
     ward_referral,
 )
 from cardiac_capacity.ward_referral import DEFAULT_PARAMS
-from cardiac_capacity_planner import presentation
+from cardiac_capacity_planner import presentation, ui
 
 os.environ["CARDIAC_LEGACY_V21"] = "1"  # v2.1 detail pages stay reachable for parity tests
 W_DEFAULT = {**DEFAULT_PARAMS, **parameter_sets.LITERATURE.ward_params()}
@@ -104,7 +104,10 @@ def test_ward_is_default_page_with_three_charts(ward_default: AppTest) -> None:
 def test_brand_is_applied(ward_default: AppTest) -> None:
     html = page_html(ward_default)
     assert "--mm-teal" in html  # canonical stylesheet injected by the bundled theme
-    assert 'class="mm-dot"' in html  # wordmark square, never a typed period
+    # the wordmark is one st.logo image (tests/app/test_brand_single_logo.py); its square is a
+    # teal rect, never a typed period
+    svg = (Path(ui.__file__).parent / "brand" / "wordmark.svg").read_text(encoding="utf-8")
+    assert 'fill="#008080"' in svg and "mmonfar." not in svg.replace('aria-label="mmonfar."', "")
 
 
 def test_ward_default_numbers_are_the_engines(ward_default: AppTest) -> None:
@@ -257,7 +260,6 @@ def cicu_expected(policy: cicu_policy.PolicyParams, threshold: float = 0.9, n_se
 def test_cicu_page_renders_five_charts(cicu_default: AppTest) -> None:
     html = page_html(cicu_default)
     assert "Detail · CICU plan" in html
-    assert 'class="mm-dot"' in html
     assert len(cicu_default.get("plotly_chart")) == 5
 
 
