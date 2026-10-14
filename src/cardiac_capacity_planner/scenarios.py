@@ -48,10 +48,21 @@ class Outcome:
     staffing_ok: bool
     extra_sessions_needed: int
     extra_beds_needed: int
+    past_window: float = 0.0  # children who waited past their operating window (typical year)
+    past_window_lo: float = 0.0
+    past_window_hi: float = 0.0
+    by_diagnosis: tuple[tuple[str, float, float], ...] = ()  # (key, operated, past window), medians
+    p_cleared: float = 1.0  # share of runs ending with at most one week of referrals waiting
+    occupancy_ok: bool = True  # average CICU occupancy at or below the comfortable level
 
     @property
     def stops_growth(self) -> bool:
         return self.list_end <= self.list_start
+
+    @property
+    def clears(self) -> bool:
+        """The list is cleared in at least 9 of 10 simulated years."""
+        return self.p_cleared >= CLEAR_SHARE
 
 
 def options(slots: int, beds: int, step: int) -> list[Option]:
@@ -113,6 +124,16 @@ def evaluate(
         return np.array([getattr(m, name) for m in ms], dtype=float)
 
     end, det = arr("list_end"), arr("det_events")
+    late = arr("deadline_missed")
+    by_dx: tuple[tuple[str, float, float], ...] = ()
+    if pol.casemix is not None:
+        keys = [g.key for g in pol.casemix.groups]
+        done = np.array([m.operated_by_group for m in ms], dtype=float)
+        past = np.array([m.past_window_by_group for m in ms], dtype=float)
+        by_dx = tuple(
+            (k, float(np.median(done[:, i])), float(np.median(past[:, i])))
+            for i, k in enumerate(keys)
+        )
     text, ok, ds, db = staffing_check(opt, staffed_sessions, staffed_beds)
     return Outcome(
         option=opt,
@@ -134,9 +155,16 @@ def evaluate(
         staffing_ok=ok,
         extra_sessions_needed=ds,
         extra_beds_needed=db,
+        past_window=float(np.median(late)),
+        past_window_lo=float(np.percentile(late, 5)),
+        past_window_hi=float(np.percentile(late, 95)),
+        by_diagnosis=by_dx,
+        p_cleared=float(np.mean(end <= max(base.weekly_referrals, 1.0))),
+        occupancy_ok=bool(np.median(arr("mean_occupancy")) <= base.target_occupancy + 1e-9),
     )
 
 
+CLEAR_SHARE = 0.9  # share of simulated years in which the list must be cleared
 CANCEL_TOLERANCE = 2  # extra cancelled operations a year that still count as "no worse"
 
 
@@ -146,7 +174,7 @@ def cancels_ok(now: Outcome, o: Outcome) -> bool:
 
 
 def recommend(outcomes: list[Outcome]) -> Outcome | None:
-    """The smallest change that stops the list growing without raising cancellations.
+    """The smallest change that clears the list without raising cancellations.
 
     Order of preference is the order of ``options`` (sessions, beds, both); an option inside the
     staffing cap wins over one outside it. If every list-stopping option raises cancellations
@@ -154,7 +182,7 @@ def recommend(outcomes: list[Outcome]) -> Outcome | None:
     recommended and ``tradeoff`` names the cost. ``None`` if nothing stops the list growing.
     """
     now = outcomes[0]
-    helps = [o for o in outcomes[1:] if o.stops_growth]
+    helps = [o for o in outcomes[1:] if o.stops_growth and o.clears and o.occupancy_ok]
     if not helps:
         return None
     clean = [o for o in helps if cancels_ok(now, o)]

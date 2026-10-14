@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from cardiac_capacity import cicu_policy, evidence, parameter_sets
+from cardiac_capacity import cicu_policy, evidence
 from cardiac_capacity_planner import scenarios
 
 APP = Path(__file__).resolve().parents[2] / "src" / "cardiac_capacity_planner" / "app.py"
@@ -41,9 +42,9 @@ def test_every_chart_has_a_what_this_means_line(summary: AppTest) -> None:
     assert html.count("What this means") >= 4
 
 
-def test_default_figures_are_the_literature(summary: AppTest) -> None:
-    assert summary.radio[0].value == "literature"
-    assert "Published literature (default)" in summary.radio[0].options
+def test_default_run_uses_published_diagnosis_figures_only(summary: AppTest) -> None:
+    assert not summary.radio  # no category-figure picker any more
+    assert "Left out of this recommendation" in _html(summary)
 
 
 def test_sources_panel_lists_a_doi_for_every_literature_default() -> None:
@@ -63,16 +64,18 @@ def test_staffing_cap_blocks_an_option() -> None:
 
 
 def test_recommendation_prefers_an_option_inside_staffing() -> None:
+    from cardiac_capacity import diagnoses
+
     base = cicu_policy.PolicyParams(
         weekly_referrals=6.0,
-        deterioration_rates=parameter_sets.LITERATURE.cicu_rates(),
-        long_wait_or=1.0,
+        deterioration_rates=(0.0, 0.0, 0.0, 0.0),
+        casemix=diagnoses.build_mix().casemix,
     )
     opts = scenarios.options(5, 10, 2)
     free = [scenarios.evaluate(base, o, 0, 0) for o in opts]
     pick = scenarios.recommend(free)
-    assert pick is not None and pick.stops_growth
-    assert free[0].list_end > free[0].list_start  # doing nothing lets the list grow
+    assert pick is not None and pick.clears
+    assert not free[0].clears  # doing nothing leaves a queue
     capped = [scenarios.evaluate(base, o, 5, 10) for o in opts]
     pick2 = scenarios.recommend(capped)
     assert (
@@ -123,3 +126,44 @@ def test_summary_page_states_cancellations_and_days_full(summary: AppTest) -> No
     html = _html(summary)
     assert "Cancelled operations:" in html
     assert "weeks planned-surgery beds full" in html
+
+
+def test_default_example_service_recommends_the_option_that_clears_the_list() -> None:
+    """Objective: clear the list, no extra cancellations, occupancy at most 85%.
+
+    v2.2.1 recommended "Add 2 CICU beds", which left 38 children waiting at week 52.
+    """
+    from cardiac_capacity import diagnoses
+
+    base = cicu_policy.PolicyParams(
+        slots=5,
+        beds=10,
+        weekly_referrals=6.0,
+        initial_backlog=60,
+        target_occupancy=0.85,
+        deterioration_rates=(0.0, 0.0, 0.0, 0.0),
+        casemix=diagnoses.build_mix().casemix,
+    )
+    outs = [scenarios.evaluate(base, o, 0, 0) for o in scenarios.options(5, 10, 2)]
+    pick = scenarios.recommend(outs)
+    assert pick is not None and pick.option.key == "both"
+    assert pick.clears and pick.list_end_hi <= 6
+    assert pick.cancelled <= outs[0].cancelled + scenarios.CANCEL_TOLERANCE
+    assert pick.occupancy <= 0.85
+    beds_only = outs[2]
+    assert beds_only.stops_growth and not beds_only.clears  # the v2.2.1 choice
+
+
+def test_an_option_that_stops_growth_but_leaves_a_queue_is_not_recommended() -> None:
+    o = scenarios.options(5, 10, 2)
+    outs = [
+        _outcome(o[0], 110, 7),
+        _outcome(o[1], 24, 7),
+        _outcome(o[2], 38, 7),
+        _outcome(o[3], 0, 7),
+    ]
+    outs[1] = replace(outs[1], p_cleared=0.1)
+    outs[2] = replace(outs[2], p_cleared=0.2)
+    assert scenarios.recommend(outs) is outs[3]
+    outs[3] = replace(outs[3], p_cleared=0.5)
+    assert scenarios.recommend(outs) is None

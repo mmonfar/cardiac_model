@@ -11,7 +11,7 @@ from html import escape
 
 import streamlit as st
 
-from cardiac_capacity import evidence, parameter_sets
+from cardiac_capacity import diagnoses, evidence, parameter_sets
 from cardiac_capacity.parameter_sets import ParameterSet
 from cardiac_capacity_planner.charts import PLOT_CONFIG
 from cardiac_capacity_planner.presentation import INK, StatusView
@@ -35,6 +35,9 @@ CSS = """
                      margin: 12px 0 auto; }
   .ccp-card .context { color: var(--mm-ink-2); font-size: 14px; border-top: 1px solid
                        var(--mm-rule); padding-top: 10px; margin-top: 14px; }
+  div[data-testid="stElementContainer"]:has(.ccp-band) { position: sticky; top: 0; z-index: 99; }
+  .ccp-band .stats { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .block-container { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
   [data-testid="stToolbar"], [data-testid="stDeployButton"], #MainMenu { display: none !important; }
   .ccp-side .mm-wordmark { font-size: 30px; }
   .ccp-band { background: #17242B; color: #FDFBF7; padding: 18px 24px; margin-bottom: 18px;
@@ -75,10 +78,24 @@ CSS = """
               margin-bottom: 18px; }
   .ccp-gaps li { margin: 6px 0; font-size: 14px; line-height: 1.45; }
   @media (max-width: 640px) {
+    .ccp-band { padding: 8px 12px; margin-bottom: 8px; gap: 2px 10px; }
+    .ccp-band .mm-wordmark, .ccp-band .sub { display: none; }
+    .ccp-band h1 { font-size: 0.95rem; }
+    .ccp-band .stats { font-size: 12px; margin-top: 2px; }
+    .ccp-do { padding: 12px 14px; margin-bottom: 10px; }
+    .ccp-do .because { font-size: 14px; line-height: 1.4; }
+    .ccp-gaps { padding: 10px 14px; margin-bottom: 8px; font-size: 14px; }
+    .ccp-kpis { grid-template-columns: 1fr 1fr; }
+    .ccp-kpi { padding: 8px 12px; border-right: 0; border-bottom: 1px solid #E3E5E4; }
+    .ccp-kpi .n { font-size: 1.3rem; }
+    .ccp-kpi .c { display: none; }
+    .ccp-table tr { display: flex; flex-wrap: wrap; padding: 4px 0; }
+    .ccp-table td { width: 50%; box-sizing: border-box; padding: 2px 10px; }
+    .ccp-table td.opt { width: 100%; font-weight: 700; }
     .ccp-band h1 { font-size: 1.15rem; }
     .ccp-do .headline { font-size: 1.2rem; }
-    .ccp-kpi { border-right: 0; border-bottom: 1px solid #E3E5E4; }
-    .ccp-table, .ccp-table tbody, .ccp-table tr, .ccp-table td { display: block; width: 100%; }
+    .ccp-table, .ccp-table tbody { display: block; width: 100%; }
+    .ccp-table td { display: block; }
     .ccp-table thead { display: none; }
     .ccp-table tr { border-bottom: 2px solid #17242B; padding: 6px 0; }
     .ccp-table td { border: 0; padding: 4px 12px; white-space: normal !important; }
@@ -147,10 +164,12 @@ def what_it_means(text: str) -> None:
     )
 
 
-def band(title: str, sub: str) -> None:
+def band(title: str, sub: str, stats: str = "") -> None:
+    """The sticky headline bar: stays in view on every page while scrolling."""
+    extra = f'<div class="stats">{escape(stats)}</div>' if stats else ""
     st.markdown(
         f"""<div class="ccp-band"><span class="mm-wordmark">mmonfar<span class="mm-dot"></span></span>
-<div><h1>{escape(title)}</h1><div class="sub">{escape(sub)}</div></div></div>""",
+<div><h1>{escape(title)}</h1><div class="sub">{escape(sub)}</div>{extra}</div></div>""",
         unsafe_allow_html=True,
     )
 
@@ -191,13 +210,14 @@ def figures_picker() -> ParameterSet:
 
 
 def sources_panel() -> None:
-    """Every default with its source or the gap it stands in for."""
+    """Every service default and the whole diagnosis table, each value with its source."""
     with st.expander("Where the numbers come from"):
         st.markdown(
-            "Every figure the planner starts with is listed here. Rows marked **assumption** "
-            "have no published source: they stand in for your own figures."
+            "Each cell is marked **F** (published for exactly this), **P** (a nearby published "
+            "figure) or **G** (no published figure; enter yours)."
         )
-        st.markdown(evidence.table_markdown())
+        st.markdown(diagnoses.table_markdown())
+        st.markdown(evidence.service_table_markdown())
 
 
 def footnote(text: str) -> None:

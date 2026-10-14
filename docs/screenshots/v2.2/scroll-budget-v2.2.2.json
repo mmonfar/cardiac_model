@@ -1,0 +1,23 @@
+{
+ "after-390": {
+  "scroll_height": 2326,
+  "viewport": 844,
+  "screens": 2.76,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-768": {
+  "scroll_height": 1637,
+  "viewport": 1024,
+  "screens": 1.6,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-1280": {
+  "scroll_height": 1429,
+  "viewport": 800,
+  "screens": 1.79,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ }
+}

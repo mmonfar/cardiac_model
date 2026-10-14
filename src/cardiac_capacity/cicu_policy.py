@@ -100,6 +100,8 @@ class RunMetrics:
     wait_at_surgery_sum: int = 0  # weeks waited, summed over patients operated in the window
     stay_sum: float = 0.0  # CICU days, summed over patients operated in the window
     stage1_operated: int = 0  # patients with a planned later stage operated in the window
+    past_window_by_group: tuple[int, ...] = ()  # v2.2: children past their window, per diagnosis
+    operated_by_group: tuple[int, ...] = ()  # v2.2: operations, per diagnosis
 
     @property
     def mean_wait_at_surgery(self) -> float:
@@ -130,6 +132,7 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
     if params.slots < 0 or params.beds < 1 or params.surge_beds < 0:
         raise ValueError("slots must be >= 0, beds >= 1, surge_beds >= 0")
     r_init, r_arr, r_det, r_los, r_misc = _streams(seed)
+    r_delay = np.random.RandomState() if seed is None else np.random.RandomState([seed, 7])
     settled = params.start_mode == "settled"
     skip = params.warmup_weeks if settled else 0
     total_weeks = weeks + skip
@@ -150,7 +153,16 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
         g_late = np.array([g.complication_late_weeks or 0 for g in mix.groups], dtype=int)
         shares = np.array(mix.arrival_shares(), dtype=float)
         stage_of = {i: g.stage2 for i, g in enumerate(mix.groups) if g.stage2}
+        # v2.2: one standard-normal draw per simulated year sets each delay effect inside its CI.
+        g_delay = np.array(
+            [
+                g.delay.draw(float(r_delay.standard_normal())) if g.delay else 0.0
+                for g in mix.groups
+            ],
+            dtype=float,
+        )
     else:
+        g_delay = np.zeros(0)
         g_cat = np.zeros(0, dtype=int)
         g_deadline = np.zeros(0, dtype=int)
         g_late = np.zeros(0, dtype=int)
@@ -185,6 +197,10 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
         wait = r_init.randint(0, 25, size=n0).astype(int)
         base_end = np.array([max(1.0, np.ceil(d)) for d in params.occupied_now], dtype=float)
     flagged = np.zeros(cat.size, dtype=bool)
+    hurt = np.zeros(cat.size, dtype=bool)
+    n_groups = len(mix.groups) if mix is not None else 0
+    by_late = np.zeros((total_weeks, n_groups), dtype=int)
+    by_done = np.zeros((total_weeks, n_groups), dtype=int)
     surge_end = np.zeros(0)
 
     total_days = 7 * total_weeks
@@ -221,11 +237,25 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
             if gone.any():
                 w_res[week] = int(gone.sum())
                 keep = ~gone
-                cat, wait, grp, flagged = cat[keep], wait[keep], grp[keep], flagged[keep]
+                cat, wait, grp, flagged, hurt = (
+                    cat[keep],
+                    wait[keep],
+                    grp[keep],
+                    flagged[keep],
+                    hurt[keep],
+                )
             dl = g_deadline[grp]
             hit = (dl > 0) & (wait >= dl) & ~flagged
             w_deadline[week] = int(hit.sum())
+            if hit.any():
+                by_late[week] += np.bincount(grp[hit], minlength=n_groups)
             flagged = flagged | hit
+            # v2.2: a child past the window may deteriorate once, with the published weekly chance.
+            past = (dl > 0) & (wait >= dl) & ~hurt & (g_delay[grp] > 0)
+            if past.any():
+                got = past & (r_delay.random_sample(cat.size) < g_delay[grp])
+                w_det[week] += int(got.sum())
+                hurt = hurt | got
 
         # 2. Referrals and planned re-entries.
         n_new = int(r_arr.poisson(params.weekly_referrals))
@@ -240,12 +270,14 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
             grp = np.concatenate([grp, new_g])
             wait = np.concatenate([wait, np.zeros(n_new, dtype=int)])
             flagged = np.concatenate([flagged, np.zeros(n_new, dtype=bool)])
+            hurt = np.concatenate([hurt, np.zeros(n_new, dtype=bool)])
         if week in reentry:
             for gi in reentry.pop(week):
                 cat = np.append(cat, g_cat[gi])
                 grp = np.append(grp, gi)
                 wait = np.append(wait, 0)
                 flagged = np.append(flagged, False)
+                hurt = np.append(hurt, False)
 
         # 3. Theatre days.
         cancels = 0
@@ -293,6 +325,7 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
                         elective_slots -= 1
                         admitted_elective += 1
                     if gi >= 0 and mix is not None:
+                        by_done[week, gi] += 1
                         if g_late[gi] and wait[idx] >= g_late[gi]:
                             w_late[week] += 1
                         st = stage_of.get(gi)
@@ -315,7 +348,13 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
                     w_adm[week] += len(taken)
                     keep = np.ones(cat.size, dtype=bool)
                     keep[taken] = False
-                    cat, wait, grp, flagged = cat[keep], wait[keep], grp[keep], flagged[keep]
+                    cat, wait, grp, flagged, hurt = (
+                        cat[keep],
+                        wait[keep],
+                        grp[keep],
+                        flagged[keep],
+                        hurt[keep],
+                    )
                 cat1_unserved[week] += int(np.sum(cat == 1))
             else:
                 base_end = base_end[base_end > day]
@@ -352,12 +391,14 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
         w_wait,
         w_stay,
         w_stage1,
+        by_late,
+        by_done,
     )
 
 
 def _metrics(res: tuple[Any, ...], target_occupancy: float) -> RunMetrics:
     (skip, total_weeks, occ_base, occ_surge, c1, w_det, w_dl, w_in, w_late, w_res, w_adm, w_can,
-     lst, over26, _cat, target_beds, beds, surge_n, w_wait, w_stay, w_stage1) = res  # fmt: skip
+     lst, over26, _cat, target_beds, beds, surge_n, w_wait, w_stay, w_stage1, by_late, by_done) = res  # fmt: skip
     s = slice(skip, total_weeks)
     ds = slice(7 * skip, 7 * total_weeks)
     ob = occ_base[ds]
@@ -382,6 +423,8 @@ def _metrics(res: tuple[Any, ...], target_occupancy: float) -> RunMetrics:
         wait_at_surgery_sum=int(w_wait[s].sum()),
         stay_sum=float(w_stay[s].sum()),
         stage1_operated=int(w_stage1[s].sum()),
+        past_window_by_group=tuple(int(x) for x in by_late[s].sum(axis=0)),
+        operated_by_group=tuple(int(x) for x in by_done[s].sum(axis=0)),
     )
 
 
@@ -393,7 +436,7 @@ def run_metrics(params: PolicyParams, weeks: int = 52, seed: int | None = None) 
 def run_frame(params: PolicyParams, weeks: int = 52, seed: int | None = None) -> pd.DataFrame:
     """One replication as a weekly frame (week 0 = the start of the measured window)."""
     res = _simulate(params, weeks, seed, detail=True)
-    skip, total_weeks, occ_base, occ_surge, c1, w_det, w_dl, _wi, _wl, _wr, w_adm, w_can, lst, o26, cats, _tb, beds, _sn, _ww, _wsy, _ws1 = res  # fmt: skip
+    skip, total_weeks, occ_base, occ_surge, c1, w_det, w_dl, _wi, _wl, _wr, w_adm, w_can, lst, o26, cats, _tb, beds, _sn, _ww, _wsy, _ws1, _bl, _bd = res  # fmt: skip
     rows = []
     for w in range(skip, total_weeks + 1):
         row: dict[str, Any] = {

@@ -1,0 +1,65 @@
+{
+ "after-390": {
+  "scroll_height": 2439,
+  "viewport": 844,
+  "screens": 2.89,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-768": {
+  "scroll_height": 1773,
+  "viewport": 1024,
+  "screens": 1.73,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-1280": {
+  "scroll_height": 1589,
+  "viewport": 800,
+  "screens": 1.99,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-diagnosis-390": {
+  "scroll_height": 4199,
+  "viewport": 844,
+  "screens": 4.98,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-diagnosis-768": {
+  "scroll_height": 2578,
+  "viewport": 1014,
+  "screens": 2.54,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-diagnosis-1280": {
+  "scroll_height": 2558,
+  "viewport": 800,
+  "screens": 3.2,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-assumptions-390": {
+  "scroll_height": 6328,
+  "viewport": 844,
+  "screens": 7.5,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-assumptions-768": {
+  "scroll_height": 5309,
+  "viewport": 1014,
+  "screens": 5.24,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ },
+ "after-assumptions-1280": {
+  "scroll_height": 5225,
+  "viewport": 790,
+  "screens": 6.61,
+  "horizontal_overflow": false,
+  "band_top_after_scroll_px": 0
+ }
+}

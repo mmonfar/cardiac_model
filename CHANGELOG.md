@@ -2,6 +2,39 @@
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.2.2] - 2026-10-12
+
+### Fixed
+- **The recommendation now aims to clear the waiting list.** The summary rule was "stops the list growing without extra cancellations" (the same rule as v2.1; v2.1 only recommended theatre sessions plus beds because its list grew to 110). That left 38 children waiting at week 52 with "Add 2 CICU beds". The rule is now: the smallest change that clears the list (at most one week of new referrals waiting at week 52, in 9 of 10 simulated years), adds no more than 2 cancellations a year, and keeps average CICU occupancy at or below your comfortable level (default 85%). For the default example service it recommends "Add 2 theatre sessions and 2 CICU beds": list 0 (0 to 5), cancellations 26 (30 if nothing changes), occupancy 49%.
+- The option table column "Chance the list is shorter" is now "Chance the list is cleared". If no option clears the list, the headline says so.
+- New tests pin the default example and the rule. Summary scroll budget re-checked: 390 px 2.8, 768 px 1.6, 1280 px 1.8 screens.
+
+## [2.2.1] - 2026-10-12
+
+### Changed
+- **No invented figure in the defaults.** The transposition-with-VSD deterioration used a 1-week exposure interval that the source (Faateh 2025) does not state, and its odds ratio measures complications after surgery, not deterioration while waiting. The cell is now a gap ("enter your figure"); the odds ratio is quoted as text only. The default run adds no deterioration. 72 cells are now 18 filled / 23 proxy / 31 gap. The weekly-hazard conversion stays in the code for sources that state a waiting time.
+- **Scroll budget met on the Decision summary:** 390 px 2.9 screens (was 4.6), 768 px 1.7, 1280 px 2.0. Explanations sit behind "What this means" and "Which ... " disclosures; staffing text and the phone table are shorter.
+- **Sticky headline bar** on every page: the recommendation and the do-nothing result stay in view while scrolling (checked by script at 390, 768 and 1280 px).
+- The "Children who got worse after the window" tile only appears when you enter a weekly chance. Wording no longer says "left panel" ("Your service today" instead).
+- README and docs give the test command with `PYTHONPATH=src` (another installed copy of the package can shadow the repository).
+
+## [2.2.0] - 2026-10-12
+
+### Changed
+- **The planner works by diagnosis.** Twelve diagnoses replace the urgency scale on every screen. Urgency is derived inside the engine from each diagnosis's published operating window and is never shown or entered.
+- **Diagnosis table with a source on every value** (`cardiac_capacity.diagnoses`): 12 diagnoses x 6 parameters = 72 cells, 18 published for exactly this, 24 from a nearby published figure, 30 with no published figure. CICU and ward stays and the case mix now come from two new published papers (acuity paper, J Am Heart Assoc 2026, doi:10.1161/jaha.125.048547; UK national audit, doi:10.1136/openhrt-2014-000157).
+- **Gaps are visible.** A diagnosis with no CICU stay shows "enter your figures" and is left out of the default recommendation; the summary says which and why. Today 7 of 12 diagnoses are planned.
+- **Deterioration while waiting** (superseded in 2.2.1: no default figure) is derived from a published odds ratio for late versus timely repair: risk ratio by Zhang and Yu, then a constant weekly hazard, with the 95% interval as the uncertainty band. One diagnosis (transposition with VSD) has such a ratio; the rest show "enter your figures".
+- New pages: **By diagnosis** (status per cell, "your figures" per diagnosis, one reset button) and **Assumptions and sources**. The v2.1 ward and CICU detail pages leave the app (they used the urgency scale); their engines and tests stay (`CARDIAC_LEGACY_V21=1` shows them).
+- Summary page: charts and the per-diagnosis table are collapsed by default to cut scrolling.
+
+### Added
+- `tests/golden/v21.json` and `tests/engine/test_v21_characterisation.py`: v2.1 behaviour pinned before the change (migrate-with-parity).
+- `docs/v2.1-vs-v2.2.md`, before/after stills at 390, 768 and 1280 px in `docs/screenshots/v2.2/`.
+
+### Known limits
+- Not clinically checked. Summary scroll budget not yet met on a phone (4.6 screens, budget 3) or desktop (2.8, budget about 2). Sticky headline bar not built.
+
 ## [2.1.0] - 2026-10-07
 
 ### Changed

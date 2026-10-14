@@ -3,6 +3,7 @@ engine's numbers (computed here independently through ``cardiac_capacity``)."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from cardiac_capacity import (
 from cardiac_capacity.ward_referral import DEFAULT_PARAMS
 from cardiac_capacity_planner import presentation
 
+os.environ["CARDIAC_LEGACY_V21"] = "1"  # v2.1 detail pages stay reachable for parity tests
 W_DEFAULT = {**DEFAULT_PARAMS, **parameter_sets.LITERATURE.ward_params()}
 
 APP = Path(__file__).resolve().parents[2] / "src" / "cardiac_capacity_planner" / "app.py"

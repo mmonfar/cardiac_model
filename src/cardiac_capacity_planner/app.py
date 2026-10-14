@@ -9,6 +9,7 @@ All simulation comes from ``cardiac_capacity``; the views only collect parameter
 and style. Every parameter is synthetic until someone enters their own.
 """
 
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -20,13 +21,17 @@ st.markdown(ui.CSS, unsafe_allow_html=True)
 ui.sidebar_brand()
 
 VIEWS = Path(__file__).resolve().parent / "views"
-page = st.navigation(
-    [
-        st.Page(VIEWS / "summary.py", title="Decision summary", url_path="summary", default=True),
+PAGES = [
+    st.Page(VIEWS / "summary.py", title="Decision summary", url_path="summary", default=True),
+    st.Page(VIEWS / "diagnosis.py", title="By diagnosis", url_path="diagnosis"),
+    st.Page(VIEWS / "assumptions.py", title="Assumptions and sources", url_path="assumptions"),
+]
+if os.environ.get("CARDIAC_LEGACY_V21") == "1":  # noqa: E501  v2.1 detail pages, parity tests only
+    PAGES += [
         st.Page(VIEWS / "ward.py", title="Detail: ward beds", url_path="ward"),
         st.Page(VIEWS / "cicu.py", title="Detail: CICU plan", url_path="cicu"),
     ]
-)
+page = st.navigation(PAGES)
 page.run()
 
 st.caption(

@@ -18,7 +18,61 @@ therefore count weeks since referral, which for a neonate diagnosed antenatally 
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class DelayEffect:
+    """Weekly deterioration of a child who waits past the operating window, from a published OR.
+
+    Rules: OR to RR with Zhang and Yu (JAMA 1998), ``RR = OR / (1 - p0 + p0 x OR)``,
+    ``p0`` the baseline risk in the timely group of the same source. The delayed group's risk over the
+    source's exposure interval of ``weeks`` is ``P1 = p0 x RR``; the weekly hazard is
+    ``h = -ln(1 - P1) / weeks`` and the weekly chance of an event is ``1 - exp(-h)``. The 95% CI sets the
+    spread of ``log(OR)``; each simulated year draws one value.
+    """
+
+    odds_ratio: float
+    ci_lo: float
+    ci_hi: float
+    p0: float
+    weeks: float
+    source: str = ""
+    fixed: float | None = None  # "your figure": a weekly chance entered by the user, no band
+
+    @classmethod
+    def yours(cls, weekly_probability: float) -> DelayEffect:
+        return cls(1.0, 1.0, 1.0, 0.5, 1.0, "yours", weekly_probability)
+
+    def risk_ratio(self, odds_ratio: float | None = None) -> float:
+        o = self.odds_ratio if odds_ratio is None else odds_ratio
+        return o / (1 - self.p0 + self.p0 * o)
+
+    def weekly_hazard(self, odds_ratio: float | None = None) -> float:
+        p1 = min(self.p0 * self.risk_ratio(odds_ratio), 0.999)
+        return -math.log(1 - p1) / self.weeks
+
+    def weekly_probability(self, odds_ratio: float | None = None) -> float:
+        if self.fixed is not None:
+            return self.fixed
+        return 1 - math.exp(-self.weekly_hazard(odds_ratio))
+
+    @property
+    def log_sd(self) -> float:
+        return (math.log(self.ci_hi) - math.log(self.ci_lo)) / (2 * 1.96)
+
+    def band(self) -> tuple[float, float, float]:
+        """Weekly chance of an event at the CI low end, the central OR and the CI high end."""
+        return (
+            self.weekly_probability(self.ci_lo),
+            self.weekly_probability(),
+            self.weekly_probability(self.ci_hi),
+        )
+
+    def draw(self, z: float) -> float:
+        """Weekly chance of an event for one simulated year (``z`` is a standard normal draw)."""
+        return self.weekly_probability(math.exp(math.log(self.odds_ratio) + self.log_sd * z))
 
 
 @dataclass(frozen=True)
@@ -48,6 +102,7 @@ class LesionGroup:
     complication_late_weeks: int | None = None  # repair after this many weeks adds complications
     complication_excess: float = 0.0
     notes: str = field(default="")
+    delay: DelayEffect | None = None  # v2.2: published deterioration once past the window
 
 
 HLHS_STAGE2 = StageReentry(

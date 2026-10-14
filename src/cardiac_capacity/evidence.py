@@ -136,3 +136,18 @@ def table_markdown() -> str:
     for d in DEFAULTS:
         rows.append(f"| {d.name} | {d.value} | {d.basis} | {d.source} | {d.gap or '-'} |")
     return "\n".join(rows) + "\n"
+
+
+SERVICE_DEFAULTS: tuple[Default, ...] = DEFAULTS[
+    -3:
+]  # the v2.2 planner keeps only the service-size rows
+
+
+def service_table_markdown() -> str:
+    rows = [
+        "| Parameter | Default | Basis | Source | What the model assumes because data is missing |",
+        "|---|---|---|---|---|",
+    ]
+    for d in SERVICE_DEFAULTS:
+        rows.append(f"| {d.name} | {d.value} | {d.basis} | {d.source} | {d.gap or '-'} |")
+    return "\n".join(rows) + "\n"
