@@ -25,7 +25,7 @@ CSS = """
   .ccp-head h1 { font: 800 2.4rem/1.05 var(--mm-font-display); letter-spacing: -0.04em;
                  color: #17242B; margin: 10px 0 14px; padding: 0; }
   .ccp-meta { display: flex; flex-wrap: wrap; gap: 8px 28px; }
-  .ccp-meta .mm-tick { color: var(--mm-ink-2); font-size: 12px; }
+  .ccp-meta .mm-tick { color: var(--mm-ink-2); font-size: 14px; }
   .ccp-brief { margin-top: 22px; padding: 18px 22px; background: #FFFFFF;
                border: 1px solid #E3E5E4; border-left: 3px solid var(--ccp-state); }
   .ccp-brief .directive { font-size: 1.25rem; font-weight: 700; color: #17242B;
@@ -44,7 +44,7 @@ CSS = """
               display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
   .ccp-band h1 { font: 800 1.45rem/1.15 var(--mm-font-display); letter-spacing: -0.03em;
                  color: #FDFBF7; margin: 0; padding: 0; }
-  .ccp-band .sub { font: 500 11px var(--mm-font-label); letter-spacing: 0.14em;
+  .ccp-band .sub { font: 500 14px var(--mm-font-label); letter-spacing: 0.14em;
                    text-transform: uppercase; color: rgba(253,251,247,0.70); }
   .ccp-do { background: #FFFFFF; border: 1px solid #E3E5E4; border-left: 4px solid #008080;
             padding: 20px 24px; margin-bottom: 18px; }
@@ -57,12 +57,12 @@ CSS = """
   .ccp-kpi:last-child { border-right: 0; }
   .ccp-kpi .n { font: 800 1.9rem/1.1 var(--mm-font-display); letter-spacing: -0.03em;
                 color: #17242B; }
-  .ccp-kpi .t { font: 500 10px var(--mm-font-label); letter-spacing: 0.14em;
+  .ccp-kpi .t { font: 500 14px var(--mm-font-label); letter-spacing: 0.14em;
                 text-transform: uppercase; color: #008080; margin-top: 4px; }
-  .ccp-kpi .c { font-size: 12.5px; color: #6E7B80; margin-top: 4px; line-height: 1.35; }
+  .ccp-kpi .c { font-size: 14px; color: #5B6B73; margin-top: 4px; line-height: 1.35; }
   .ccp-table { width: 100%; border-collapse: collapse; background: #FFFFFF;
-               border: 1px solid #E3E5E4; font-size: 13.5px; margin-bottom: 8px; }
-  .ccp-table th { text-align: left; font: 500 10px var(--mm-font-label); letter-spacing: 0.12em;
+               border: 1px solid #E3E5E4; font-size: 14px; margin-bottom: 8px; }
+  .ccp-table th { text-align: left; font: 500 14px var(--mm-font-label); letter-spacing: 0.12em;
                   text-transform: uppercase; color: #008080; padding: 10px 12px;
                   border-bottom: 1px solid #E3E5E4; vertical-align: bottom; }
   .ccp-table td { padding: 10px 12px; border-bottom: 1px solid #E3E5E4; vertical-align: top;
@@ -71,16 +71,24 @@ CSS = """
   .ccp-table td.num { white-space: nowrap; }
   .ccp-meaning { color: #17242B; font-size: 14px; line-height: 1.45; margin: 2px 0 22px;
                  padding-left: 12px; border-left: 2px solid #008080; }
-  .ccp-meaning b { font: 500 10px var(--mm-font-label); letter-spacing: 0.14em;
+  .ccp-meaning b { font: 500 14px var(--mm-font-label); letter-spacing: 0.14em;
                    text-transform: uppercase; color: #008080; margin-right: 6px; }
   .ccp-gaps { background: #FFFFFF; border: 1px solid #E3E5E4; padding: 16px 22px;
               margin-bottom: 18px; }
   .ccp-gaps li { margin: 6px 0; font-size: 14px; line-height: 1.45; }
+  .mm-label-sm, .mm-tick, [data-testid="stCaptionContainer"] { font-size: 14px !important; }
+  .ccp-quiet { color: #5B6B73; font-size: 14px; margin: -8px 0 12px; }
+  @media (max-width: 700px) {
+    [data-testid="stExpandSidebarButton"] { width: auto !important; padding: 4px 12px !important;
+        border: 1px solid #17242B !important; border-radius: 4px; background: #FFFFFF !important; }
+    [data-testid="stExpandSidebarButton"]::after { content: "Change inputs"; font-size: 14px;
+        font-weight: 700; color: #17242B; margin-left: 8px; }
+  }
   @media (max-width: 640px) {
     .ccp-band { padding: 8px 12px; margin-bottom: 8px; gap: 2px 10px; }
     .ccp-band .sub { display: none; }
     .ccp-band h1 { font-size: 0.95rem; }
-    .ccp-band .stats { font-size: 12px; margin-top: 2px; }
+    .ccp-band .stats { font-size: 14px; margin-top: 2px; }
     .ccp-do { padding: 12px 14px; margin-bottom: 10px; }
     .ccp-do .because { font-size: 14px; line-height: 1.4; }
     .ccp-gaps { padding: 10px 14px; margin-bottom: 8px; font-size: 14px; }
@@ -98,7 +106,7 @@ CSS = """
     .ccp-table thead { display: none; }
     .ccp-table tr { border-bottom: 2px solid #17242B; padding: 6px 0; }
     .ccp-table td { border: 0; padding: 4px 12px; white-space: normal !important; }
-    .ccp-table td::before { content: attr(data-label); display: block; font: 500 10px var(--mm-font-label);
+    .ccp-table td::before { content: attr(data-label); display: block; font: 500 14px var(--mm-font-label);
                             letter-spacing: 0.12em; text-transform: uppercase; color: #008080; }
     .ccp-head h1 { font-size: 1.6rem; }
   }

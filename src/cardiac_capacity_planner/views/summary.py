@@ -44,7 +44,7 @@ base = cp.PolicyParams(
 )
 
 
-@st.cache_data(show_spinner="Simulating 60 possible years for each option…")
+@st.cache_data(show_spinner="Calculating, about 1 minute: simulating 60 possible years for each option…")
 def compare(
     base: cp.PolicyParams, step: int, ss: int, sb: int
 ) -> tuple[list[scenarios.Outcome], dict[str, tuple[list[int], ...]]]:
@@ -73,6 +73,11 @@ ui.band(
     f"{now.list_start:.0f} → {now.list_end:.0f}, {now.past_window:.0f} past their window",
 )
 
+st.markdown(
+    '<div class="ccp-quiet">Not a medical device. Synthetic data until you enter your own figures.</div>',
+    unsafe_allow_html=True,
+)
+
 has_det = any(g.delay is not None for g in mix.casemix.groups)  # only from "your figures"
 
 # --- What we need to do ------------------------------------------------------------------
@@ -98,7 +103,7 @@ else:
     if trade:
         because += f"<b>Trade-off:</b> {trade} "
     if pick.staffing_ok and staffed_sessions <= 0 and staffed_beds <= 0:
-        because += "Staffing is not set. Enter limits in Your service today."
+        because += "Staffing is not set. Open the sidebar section \"Staffing limits\" and enter your limits."
     elif pick.staffing_ok:
         because += "Within the staffing limits you entered."
     else:
@@ -119,7 +124,7 @@ n_left = len(mix.excluded)
 st.markdown(
     f'<div class="ccp-gaps"><b>Left out of this recommendation:</b> {n_left} of {len(diagnoses.DIAGNOSES)} '
     f"diagnoses ({escape('; '.join(reasons)) if reasons else 'none'}). "
-    f"<b>{n_unpub}</b> inputs used here are not from published data (proxies).</div>",
+    f"<b>{n_unpub}</b> inputs used here are proxies: a published figure for a neighbouring quantity, with source and mismatch shown on the By diagnosis page.</div>",
     unsafe_allow_html=True,
 )
 left_out_md = (

@@ -48,7 +48,7 @@ def test_summary_names_diagnoses_and_states_what_is_left_out(summary: AppTest) -
     assert "Complete AVSD" in html
     assert "If we do nothing, by diagnosis" in html
     assert "Tetralogy of Fallot" in html
-    assert "inputs used here are not from published data" in html
+    assert "inputs used here are proxies" in html
 
 
 def test_only_service_size_and_staffing_are_free_inputs_on_the_summary(summary: AppTest) -> None:

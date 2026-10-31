@@ -15,11 +15,11 @@ The planner works by **diagnosis**. Open the app and the first screen answers fo
 3. **What does each lever do?** Extra theatre sessions, extra CICU beds, or both, side by side.
 4. **What does staffing allow?** Enter how many sessions and beds your staff can cover. Any option that needs more is marked.
 
-Two more pages: **By diagnosis** (every value with its status, and a place to enter your own figures) and **Assumptions and sources** (the full table, a source and DOI on every value).
+Two more pages: **By diagnosis** (every value with its status, and a place to enter your own figures) and **Assumptions and sources** (the full table; every published value shows its source and DOI).
 
 ## Published evidence first, your figures if you wish
 
-Every diagnosis figure comes from the published literature, with a DOI. Where none exists the cell shows **enter your figures** and that diagnosis is **left out of the default recommendation**; nothing is invented. Only the size of your service (sessions, beds, waiting list, referrals a week) is entered by you. Urgency is never entered: the planner derives it from each diagnosis's published operating window.
+Every published value shows its source and DOI. Some are proxies: a published figure for a neighbouring quantity, with the mismatch stated (the first screen counts them). Where no figure exists the cell shows **enter your figures** and that diagnosis is **left out of the default recommendation**; nothing is invented. Only the size of your service (sessions, beds, waiting list, referrals a week) is entered by you. Urgency is never entered: the planner derives it from each diagnosis's published operating window.
 
 ![Decision summary at desktop width](docs/screenshots/v2.2/after-1280-first-screen.png)
 
