@@ -15,7 +15,7 @@ import streamlit as st
 
 from cardiac_capacity import cicu_policy as cp
 from cardiac_capacity import diagnoses
-from cardiac_capacity_planner import charts, scenarios, ui
+from cardiac_capacity_planner import charts, default_cache, scenarios, ui
 
 with st.sidebar:
     ui.section("Your service today")
@@ -45,13 +45,15 @@ base = cp.PolicyParams(
 
 
 @st.cache_data(show_spinner="Calculating, about 1 minute: simulating 60 possible years for each option…")
-def compare(
+def compare_live(
     base: cp.PolicyParams, step: int, ss: int, sb: int
 ) -> tuple[list[scenarios.Outcome], dict[str, tuple[list[int], ...]]]:
-    opts = scenarios.options(base.slots, base.beds, step)
-    outs = [scenarios.evaluate(base, o, ss, sb) for o in opts]
-    bands = {o.key: scenarios.weekly_list(base, o) for o in opts}
-    return outs, bands
+    return default_cache.compute(base, step, ss, sb)
+
+
+def compare(base: cp.PolicyParams, step: int, ss: int, sb: int):
+    """Default inputs: the committed, checked cache (instant). Any change: the live run."""
+    return default_cache.load(base, step, ss, sb) or compare_live(base, step, ss, sb)
 
 
 outs, bands = compare(base, step, staffed_sessions, staffed_beds)

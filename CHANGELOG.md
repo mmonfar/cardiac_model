@@ -96,3 +96,6 @@ v1 is preserved at the tag `v1-final` and is superseded by this release.
 ### Removed
 - The fixed text that called the recommendation reliable whatever the numbers; the page now shows the measured success rate.
 - v1 source files from the working tree (still available at `v1-final`).
+
+## Unreleased
+- First screen shows the default result at once (precomputed `data/cache/default_run.json`, built by `scripts/build_default_cache.py`). The cache is checked against a model fingerprint and the inputs; any change runs the live simulation. Test: `tests/app/test_default_cache.py`. After any model or default change, re-run the script (the test fails until you do).
