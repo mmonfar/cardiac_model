@@ -21,7 +21,11 @@ Two more pages: **By diagnosis** (every value with its status, and a place to en
 
 Every published value shows its source and DOI. Some are proxies: a published figure for a neighbouring quantity, with the mismatch stated (the first screen counts them). Where no figure exists the cell shows **enter your figures** and that diagnosis is **left out of the default recommendation**; nothing is invented. Only the size of your service (sessions, beds, waiting list, referrals a week) is entered by you. Urgency is never entered: the planner derives it from each diagnosis's published operating window.
 
-![Decision summary at desktop width](docs/screenshots/v2.2/after-1280-first-screen.png)
+![Decision summary: what to do, and what happens if nothing changes, desktop view](docs/screenshots/readme_desktop.png)
+
+On a phone: <img src="docs/screenshots/readme_phone.png" alt="Same screen on a phone, 390 pixels wide" width="195">
+
+*Screenshot with synthetic data.*
 
 ## How to run
 
