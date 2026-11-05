@@ -59,7 +59,7 @@ with st.sidebar:
     )
     ui.section("Waiting list")
     backlog = int(st.number_input("Initial backlog", min_value=0, value=60, step=1))
-    referrals = int(st.number_input("Weekly referrals", min_value=0, value=5, step=1))
+    referrals = int(st.number_input("Weekly referrals", min_value=0, value=6, step=1))
     with st.expander("Category mix and length of stay"):
         mix = [
             st.number_input(f"{label} share", 0.0, 1.0, float(p), 0.01, format="%.2f")

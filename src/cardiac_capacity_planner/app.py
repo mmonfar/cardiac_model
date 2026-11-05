@@ -16,7 +16,7 @@ import streamlit as st
 
 from cardiac_capacity_planner import brand, ui
 
-brand.apply(st, page_title="Cardiac waiting list planner", page_icon="◼", layout="wide")
+brand.apply(st, page_title="Cardiac capacity planner", page_icon="◼", layout="wide")
 st.markdown(ui.CSS, unsafe_allow_html=True)
 ui.sidebar_brand()
 

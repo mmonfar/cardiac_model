@@ -1,4 +1,4 @@
-# Cardiac Waiting List Planner
+# Cardiac Capacity Planner
 
 What happens to the cardiac waiting list if we add theatre time, beds or staff? A scenario planner built on published evidence, with the option to use your own figures.
 

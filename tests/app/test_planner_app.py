@@ -236,7 +236,7 @@ def cicu_policy_expected(**kw: object) -> cicu_policy.PolicyParams:
         beds=10,
         target_occupancy=0.85,
         surge_max_los_days=3.0,
-        weekly_referrals=5.0,
+        weekly_referrals=6.0,
         initial_backlog=60,
         category_distribution=tuple(mix),
         los_days=(14.0, 10.0, 5.0, 3.0),
@@ -284,7 +284,7 @@ def test_cicu_default_recommendation_is_the_engines(cicu_default: AppTest) -> No
 
 
 def test_cicu_deterministic_panel_matches_engine(cicu_default: AppTest) -> None:
-    params = CicuParams(deterioration_rates=DEF.cicu_rates())
+    params = CicuParams(weekly_referrals=6, deterioration_rates=DEF.cicu_rates())
     sim = CicuSimulator(5, params, model_version="v2")
     summary = sim.summary()
     peak = float(sim.simulate()["cicu_peak_daily"].to_numpy().max())
@@ -303,7 +303,7 @@ def test_cicu_v1_comparison_is_off_by_default_and_optional(cicu_default: AppTest
     run(at)
     html = page_html(at)
     assert "Compare with the previous version (v1)" in html
-    params = CicuParams(deterioration_rates=DEF.cicu_rates())
+    params = CicuParams(weekly_referrals=6, deterioration_rates=DEF.cicu_rates())
     v1_peak = float(CicuSimulator(5, params).simulate()["cicu_occupancy"].to_numpy().max())
     assert f"{v1_peak:.1f}" in html
     assert "None in 3–14" in html  # v1 recommended capacity at the default
@@ -389,7 +389,7 @@ def test_cicu_more_beds_keeps_a_plan_and_inherited_test_passes() -> None:
     at = cicu_run()
     number(at, "CICU beds").set_value(40)
     run(at)
-    params = CicuParams(cicu_beds=40, deterioration_rates=DEF.cicu_rates())
+    params = CicuParams(weekly_referrals=6, cicu_beds=40, deterioration_rates=DEF.cicu_rates())
     sim = CicuSimulator(5, params, model_version="v2")
     assert cicu.recommended_capacity(sim.capacity_table()) == 3
     html = page_html(at)
@@ -405,7 +405,7 @@ def test_cicu_follows_mode_and_rounding(mode: str, rounding: str) -> None:
     at.radio[0].set_value(rounding)
     slider(at, "Theatre sessions a week (operations)").set_value(8)
     run(at)
-    params = CicuParams(
+    params = CicuParams(weekly_referrals=6, 
         rounding_method=rounding, scheduling_mode=mode, deterioration_rates=DEF.cicu_rates()
     )
     summary = CicuSimulator(8, params, model_version="v2").summary()
