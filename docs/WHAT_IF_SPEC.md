@@ -68,3 +68,10 @@ C6b is "done, awaiting ED sign-off" (board row C6b). The brain intake (open-acce
 | 6 | Stress-test library (5 presets), README, CHANGELOG, licence lines, stills at 390 and 1280 px | `python -m pytest -q` | 0.8% |
 
 Total: about 5.1% of a weekly budget, plus about 0.5% for ED review and checks, so about 5.6%. At 10-14% a day, that is one to two working days.
+
+## Brain sources (ED brain_search, 6 Nov)
+- `chd-surgery-discharge-barriers-los-2026`: 24.3% of 752 CHD surgery patients had at least 1 discharge barrier; bed availability is one category. Use for the "beds blocked" event range (station 1).
+- `or-ms-methods-orthopaedic-care-review` (Hulshof et al. 2012 taxonomy): label each what-if as strategic, tactical or operational in the decision log (station 3).
+- `kidney-waiting-list-expansion-scenarios`: example of reporting scenario results as median (IQR) wait; copy this reporting style (station 2).
+- `publisher-check-morris-2019-simulation-studies` (ADEMP): state aims, data, estimands, methods and performance for the stress runs (station 6).
+- Gap: no source on decision-log practice for managers. Add to brain_gaps; it does not block station 1.
