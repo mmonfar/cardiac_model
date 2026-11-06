@@ -44,6 +44,53 @@ THEATRE_DAYS = 5
 DEFAULT_RATES = (0.0, 0.05, 0.02, 0.01)  # CicuParams defaults (placeholders)
 
 
+EVENT_KINDS = ("block_beds", "cut_theatre", "extra_arrivals")
+MAX_EVENT_WEEK = 520  # ten years: anything later is a typing mistake
+MAX_EVENT_DURATION = 104  # two years
+
+
+@dataclass(frozen=True)
+class Event:
+    """One thing that changes for a while (what-if mode). Weeks count from the start of the measured window (week 0).
+
+    - ``block_beds``: ``amount`` base beds out of use. Patients already in a bed stay; no new admissions fill it.
+    - ``cut_theatre``: elective slots per week fall to ``amount`` (0 = theatre closed). It never raises slots.
+    - ``extra_arrivals``: ``amount`` more referrals per week (mean). ``urgency`` (1-4) sets their category;
+      ``None`` keeps the usual mix.
+
+    Duration is ``duration_weeks``, or a range ``duration_weeks`` to ``duration_max_weeks``: each seeded run
+    then draws one whole number of weeks from the range (both ends included).
+    """
+
+    kind: str
+    amount: float
+    start_week: int = 0
+    duration_weeks: int = 1
+    duration_max_weeks: int | None = None
+    urgency: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in EVENT_KINDS:
+            raise ValueError(f"Event kind must be one of {EVENT_KINDS}.")
+        if self.kind == "extra_arrivals":
+            if not 0 < self.amount <= 100:
+                raise ValueError("Extra referrals per week must be more than 0 and at most 100.")
+        else:
+            if self.amount != int(self.amount) or not 0 <= self.amount <= 1000:
+                raise ValueError("Beds or slots must be a whole number from 0 to 1000.")
+            if self.kind == "block_beds" and self.amount < 1:
+                raise ValueError("Block at least 1 bed.")
+        if not 0 <= self.start_week <= MAX_EVENT_WEEK:
+            raise ValueError(f"Start week must be from 0 to {MAX_EVENT_WEEK}.")
+        top = self.duration_max_weeks if self.duration_max_weeks is not None else self.duration_weeks
+        if not 1 <= self.duration_weeks <= top <= MAX_EVENT_DURATION:
+            raise ValueError(
+                f"Duration must be from 1 to {MAX_EVENT_DURATION} weeks, and the longest cannot be shorter than the shortest."
+            )
+        if self.urgency is not None and (self.kind != "extra_arrivals" or self.urgency not in (1, 2, 3, 4)):
+            raise ValueError("Urgency (1 to 4) applies to extra referrals only.")
+
+
 @dataclass(frozen=True)
 class PolicyParams:
     """One plan plus one scenario. ``slots``, ``beds`` and ``surge_beds`` are the decisions."""
@@ -66,6 +113,7 @@ class PolicyParams:
     start_mode: str = "today"
     warmup_weeks: int = 52
     casemix: CaseMix | None = None
+    events: tuple[Event, ...] = ()  # what-if: time-limited changes; empty = the normal run, unchanged
 
     @property
     def elective_limit(self) -> int:
@@ -126,6 +174,33 @@ def _odds(p: np.ndarray, odds_ratio: float) -> np.ndarray:
     return p * odds_ratio / (1 - p + p * odds_ratio)
 
 
+def _event_weeks(
+    params: PolicyParams, total_weeks: int, skip: int, rs: np.random.RandomState
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Per simulated week: beds blocked, slot cap (-1 = none), extra referrals, urgency of the extras (0 = usual mix)."""
+    blocked = np.zeros(total_weeks, dtype=int)
+    cap = np.full(total_weeks, -1, dtype=int)
+    extra = np.zeros(total_weeks)
+    urg = np.zeros(total_weeks, dtype=int)
+    for ev in params.events:
+        if ev.kind == "block_beds" and ev.amount > params.beds:
+            raise ValueError(f"Cannot block {int(ev.amount)} beds: the unit has {params.beds}.")
+        top = ev.duration_max_weeks if ev.duration_max_weeks is not None else ev.duration_weeks
+        length = ev.duration_weeks if top == ev.duration_weeks else int(rs.randint(ev.duration_weeks, top + 1))
+        w0 = skip + ev.start_week
+        win = slice(min(w0, total_weeks), min(w0 + length, total_weeks))
+        if ev.kind == "block_beds":
+            blocked[win] += int(ev.amount)
+        elif ev.kind == "cut_theatre":
+            old = cap[win]
+            cap[win] = np.where(old < 0, int(ev.amount), np.minimum(old, int(ev.amount)))
+        else:
+            extra[win] += ev.amount
+            if ev.urgency:
+                urg[win] = ev.urgency
+    return blocked, cap, extra, urg
+
+
 def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) -> tuple[Any, ...]:
     if params.start_mode not in START_MODES:
         raise ValueError(f"start_mode must be one of {START_MODES}")
@@ -171,12 +246,12 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
         shares = np.zeros(0)
         stage_of = {}
 
-    slots_week = int(params.slots)
-    base_slots, extra = divmod(slots_week, THEATRE_DAYS)
-    beds = int(params.beds)
-    e_limit = params.elective_limit
+    beds_nominal = int(params.beds)
+    # Own stream, used only when an event has a duration range, so event-free runs draw nothing new.
+    r_event = np.random.RandomState() if seed is None else np.random.RandomState([seed, 8])
+    ev_blocked, ev_cap, ev_extra, ev_urg = _event_weeks(params, total_weeks, skip, r_event)
     surge_n = int(params.surge_beds)
-    target_beds = params.target_occupancy * beds
+    target_beds = params.target_occupancy * beds_nominal
 
     def draw_groups(n: int, rs: np.random.RandomState) -> np.ndarray:
         return rs.choice(len(shares), size=n, p=shares).astype(int)
@@ -226,6 +301,18 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
     reentry: dict[int, list[int]] = {}  # week -> group indices of planned stage-2 patients
 
     for week in range(total_weeks):
+        # 0. Effective beds and slots this week (events; with none these equal the plan).
+        if ev_blocked[week]:
+            beds = max(0, beds_nominal - int(ev_blocked[week]))
+            e_limit = (
+                min(beds, max(1, int(np.floor(params.target_occupancy * beds + 1e-9)))) if beds else 0
+            )
+        else:
+            beds = beds_nominal
+            e_limit = params.elective_limit
+        slots_week = int(params.slots) if ev_cap[week] < 0 else min(int(params.slots), int(ev_cap[week]))
+        base_slots, extra = divmod(slots_week, THEATRE_DAYS)
+
         # 1. Ageing, deterioration, resolution, deadlines.
         wait = wait + 1
         probs = np.where(wait >= params.long_wait_weeks, p_long.take(cat), p_det.take(cat))
@@ -271,6 +358,30 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
             wait = np.concatenate([wait, np.zeros(n_new, dtype=int)])
             flagged = np.concatenate([flagged, np.zeros(n_new, dtype=bool)])
             hurt = np.concatenate([hurt, np.zeros(n_new, dtype=bool)])
+        if ev_extra[week] > 0:  # what-if surge: separate draws, only when an event asks for them
+            n_ex = int(r_event.poisson(ev_extra[week]))
+            if n_ex:
+                ex_cat = int(ev_urg[week])
+                if mix is not None:
+                    pool_g = np.where(g_cat == ex_cat)[0] if ex_cat else np.zeros(0, dtype=int)
+                    if pool_g.size:
+                        w = shares[pool_g] / shares[pool_g].sum()
+                        ex_g = pool_g[r_event.choice(pool_g.size, size=n_ex, p=w)].astype(int)
+                    else:
+                        ex_g = r_event.choice(len(shares), size=n_ex, p=shares).astype(int)
+                    ex_c = g_cat[ex_g]
+                else:
+                    ex_c = (
+                        np.full(n_ex, ex_cat, dtype=int)
+                        if ex_cat
+                        else r_event.choice([1, 2, 3, 4], size=n_ex, p=cat_probs).astype(int)
+                    )
+                    ex_g = np.full(n_ex, -1, dtype=int)
+                cat = np.concatenate([cat, ex_c])
+                grp = np.concatenate([grp, ex_g])
+                wait = np.concatenate([wait, np.zeros(n_ex, dtype=int)])
+                flagged = np.concatenate([flagged, np.zeros(n_ex, dtype=bool)])
+                hurt = np.concatenate([hurt, np.zeros(n_ex, dtype=bool)])
         if week in reentry:
             for gi in reentry.pop(week):
                 cat = np.append(cat, g_cat[gi])
@@ -386,7 +497,7 @@ def _simulate(params: PolicyParams, weeks: int, seed: int | None, detail: bool) 
         over26_closing,
         cat_closing,
         target_beds,
-        beds,
+        beds_nominal,
         surge_n,
         w_wait,
         w_stay,

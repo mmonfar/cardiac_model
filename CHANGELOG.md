@@ -2,6 +2,11 @@
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Engine only (what-if station 1): `Event` type and `PolicyParams.events` (block beds, cut theatre, extra referrals; optional duration range). Default is empty, so every result is unchanged; the default-run cache was rebuilt (code fingerprint) with identical numbers.
+
 ## [2.2.3] - 2026-10-14
 
 ### Fixed
