@@ -26,7 +26,7 @@ def go(step: int) -> None:
 
 
 def start_over() -> None:
-    for k in ("wi_choice", "wi_name", "wi_why", "wi_use_review", "wi_review", "wi_card", "wi_answers", "wi_result", "wi_recovery", "wi_saved", "wi_error"):
+    for k in ("wi_choice", "wi_name", "wi_why", "wi_use_review", "wi_review", "wi_card", "wi_answers", "wi_scenario", "wi_result", "wi_recovery", "wi_saved", "wi_error"):
         S.pop(k, None)
     S["wi_step"] = 1
 
@@ -45,6 +45,7 @@ def to_check(a: wu.Answers) -> None:
         return
     S.pop("wi_error", None)
     S["wi_answers"] = a
+    S["wi_scenario"] = wu.scenario_for(a)  # the one scenario every later screen runs from
     S.pop("wi_result", None)
     S.pop("wi_recovery", None)
     S.pop("wi_saved", None)
@@ -52,11 +53,12 @@ def to_check(a: wu.Answers) -> None:
 
 
 def row(label: str, share: float, worse: float, end: float, pick: bool = False) -> str:
+    worse = round(worse)
     return (
         f'<tr class="{"pick" if pick else ""}"><td class="opt" data-label="Option">{escape(label)}</td>'
         f'<td class="num" data-label="Meets every condition">{share:.0%} of futures</td>'
-        f'<td class="num" data-label="Children who get worse">{worse:.0f}</td>'
-        f'<td class="num" data-label="List at the end">{end:.0f}</td></tr>'
+        f'<td class="num" data-label="Children who get worse (typical)">{worse:.0f}</td>'
+        f'<td class="num" data-label="List at the end (typical)">{end:.0f}</td></tr>'
     )
 
 
@@ -121,10 +123,10 @@ elif step == 3 and answers:
 
 # ---------------------------------------------------------------- 4 What it means
 elif step == 4 and answers:
-    event = wu.make_event(answers)
+    scenario: wu.Scenario = S["wi_scenario"]
     if "wi_result" not in S:
-        with st.spinner("Running 30 possible futures, with and without the change…"):
-            S["wi_result"] = whatif.run_whatif(wu.base_params(), (event,))
+        with st.spinner(f"Running {scenario.runs} possible futures, with and without the change…"):
+            S["wi_result"] = scenario.run()
     res: whatif.WhatIfResult = S["wi_result"]
     top = [res.get("list_end"), res.get("det_events"), res.get("cat1_unserved_days")]
     st.markdown(
@@ -156,16 +158,19 @@ elif step == 4 and answers:
     cols[1].button("What can we do?", type="primary", on_click=go, args=(5,), key="n4", use_container_width=True)
     cols[2].button("Record decision", on_click=go, args=(6,), key="r4", use_container_width=True)
     st.markdown(
-        f'<div class="ccp-quiet">Median of {res.runs} possible futures over {res.weeks} weeks; range = 5th to 95th percentile. {escape(decision_log.DISCLAIMER)}</div>',
+        f'<div class="ccp-quiet">Median of {res.runs} possible futures over {res.weeks} weeks; range = 5th to 95th percentile. A range of possible futures, not a forecast. {escape(wu.DETERIORATION_SOURCE)}</div>',
         unsafe_allow_html=True,
     )
 
 # ---------------------------------------------------------------- 5 What can we do?
 elif step == 5 and answers:
-    event = wu.make_event(answers)
+    scenario = S["wi_scenario"]
+    if "wi_result" not in S:
+        S["wi_result"] = scenario.run()
+    res = S["wi_result"]
     if "wi_recovery" not in S:
         with st.spinner("Searching for plans, about 1 minute…"):
-            S["wi_recovery"] = whatif_recommend.recover(wu.base_params(), (event,))
+            S["wi_recovery"] = scenario.recover()
     rec: whatif_recommend.Recovery = S["wi_recovery"]
     rows = ""
     if rec.found:
@@ -175,20 +180,26 @@ elif step == 5 and answers:
             f'<div class="because">{escape(rec.message)}</div></div>',
             unsafe_allow_html=True,
         )
-        rows = "".join(row(f"{o.rank}. {wu.plan_label(o.slots, o.surge)}", o.share_ok, o.worsen_mean, o.list_end_mean, o.rank == 1) for o in rec.options)
+        rows = "".join(row(f"{o.rank}. {wu.plan_label(o.slots, o.surge)}", o.share_ok, o.worsen_p50, o.list_end_p50, o.rank == 1) for o in rec.options)
     else:
         st.markdown(
             f'<div class="ccp-do"><div class="mm-label-sm">Result</div><div class="headline">No safe plan found.</div>'
-            f'<div class="because">{escape(rec.message.removeprefix("No safe plan found. "))}</div></div>',
+            f'<div class="because">{escape(rec.message.removeprefix("No safe plan found "))}</div></div>',
             unsafe_allow_html=True,
         )
         be = rec.best_effort
         if be is not None:
-            rows = row(f"Closest: {wu.plan_label(be.slots, be.surge)}", be.share_ok, be.worsen_mean, be.list_end_mean, True)
+            rows = row(f"Closest: {wu.plan_label(be.slots, be.surge)}", be.share_ok, be.worsen_p50, be.list_end_p50, True)
     dn = rec.do_nothing
-    rows += row(f"Keep the current plan ({wu.plan_label(dn.slots, dn.surge)})", dn.share_ok, dn.worsen_mean, dn.list_end_mean)
+    # "Keep the current plan" is the very run shown on screen 4 ("your case"): same numbers, read from that result.
+    rows += row(
+        f"Keep the current plan ({wu.plan_label(dn.slots, dn.surge)})",
+        dn.share_ok,
+        res.get("det_events").scenario.p50,
+        res.get("list_end").scenario.p50,
+    )
     st.markdown(
-        '<table class="ccp-table"><thead><tr><th>Option</th><th>Meets every condition</th><th>Children who get worse</th><th>List at the end</th></tr></thead>'
+        '<table class="ccp-table"><thead><tr><th>Option</th><th>Meets every condition</th><th>Children who get worse (typical)</th><th>List at the end (typical)</th></tr></thead>'
         f"<tbody>{rows}</tbody></table>",
         unsafe_allow_html=True,
     )
@@ -198,10 +209,11 @@ elif step == 5 and answers:
 
 # ---------------------------------------------------------------- 6 Record your decision
 elif step == 6 and answers:
-    event = wu.make_event(answers)
+    scenario = S["wi_scenario"]
+    event = scenario.events[0]
     if "wi_result" not in S:
-        with st.spinner("Running 30 possible futures…"):
-            S["wi_result"] = whatif.run_whatif(wu.base_params(), (event,))
+        with st.spinner(f"Running {scenario.runs} possible futures…"):
+            S["wi_result"] = scenario.run()
     res = S["wi_result"]
     rec = S.get("wi_recovery")
     st.markdown("### Record your decision")

@@ -36,7 +36,8 @@ def test_impossible_scenario_says_no_safe_plan() -> None:
     ev = (cp.Event("block_beds", 10, start_week=0, duration_weeks=26),)
     r = wr.recover(params(), ev, weeks=26, **SMALL)
     assert not r.found and r.options == ()
-    assert r.message == wr.NO_PLAN
+    assert r.message.startswith("No safe plan found within")
+    assert r.best_effort is not None and r.do_nothing.slots <= r.best_effort.slots <= r.do_nothing.slots + wr.MAX_EXTRA_CASES
     assert r.best_effort is not None and r.best_effort.share_ok < r.recommendation.threshold
 
 

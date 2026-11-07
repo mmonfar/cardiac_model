@@ -87,6 +87,8 @@ class PlanEval:
     bed_days_used: float
     det: tuple[int, ...] = field(repr=False, default=())  # per seed, for paired differences
     complete: bool = True  # False when evaluation stopped early (cannot reach the threshold)
+    det_p50: float = 0.0  # median over the seeds (what the what-if screens show)
+    list_end_p50: float = 0.0
 
     @property
     def p_ok(self) -> float:
@@ -141,6 +143,8 @@ def evaluate_plan(
         float(np.mean(used)),
         tuple(dets),
         complete,
+        float(np.median(arr)) if k else 0.0,
+        float(np.median(lst)) if lst else 0.0,
     )
 
 
@@ -256,8 +260,9 @@ def recommend(
     seed_select: int = SEED_SELECT,
     seed_validate: int = SEED_VALIDATE,
     seed_check: int = SEED_CHECK,
+    min_slots: int = 1,
 ) -> CicuRecommendation:
-    """Search ``slots`` 1..max_slots, without and (optionally) with a surge bed."""
+    """Search ``slots`` min_slots..max_slots (default 1..max_slots), without and (optionally) with a surge bed."""
     if not 0 < threshold < 1:
         raise ValueError("threshold must be between 0 and 1")
     if n_seed_check < 30:
@@ -268,7 +273,7 @@ def recommend(
     by_pool: dict[bool, list[PlanEval]] = {}
     for surge in pools:
         rows = []
-        for s in range(1, max_slots + 1):
+        for s in range(min_slots, max_slots + 1):
             e = evaluate_plan(params, s, surge, weeks, n_select, seed_select, threshold)
             n_evals += 1
             rows.append(e)

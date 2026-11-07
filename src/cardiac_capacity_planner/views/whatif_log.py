@@ -28,5 +28,4 @@ else:
     pick = st.selectbox("Open number", [r["id"] for r in reversed(data)])
     st.download_button("Download all as a spreadsheet (CSV)", decision_log.export_csv(con), "what_if_consultations.csv", "text/csv", type="primary")
     with st.expander("One-page print view", expanded=False):
-        st.code(decision_log.print_view(con, int(pick)), language=None, wrap_lines=True)
-st.markdown(f'<div class="ccp-quiet">{decision_log.DISCLAIMER}</div>', unsafe_allow_html=True)
+        st.code(wu.print_text(decision_log.get(con, int(pick))), language=None, wrap_lines=True)

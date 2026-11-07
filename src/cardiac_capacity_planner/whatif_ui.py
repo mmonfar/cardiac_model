@@ -7,14 +7,15 @@ No simulation here: ``cardiac_capacity.whatif`` and ``whatif_recommend`` do the 
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import cardiac_capacity
 from cardiac_capacity import cicu_policy as cp
-from cardiac_capacity import diagnoses, whatif
-from cardiac_capacity.decision_log import Entry
+from cardiac_capacity import diagnoses, parameter_sets, whatif, whatif_recommend
+from cardiac_capacity.decision_log import DISCLAIMER, Entry
 
 # The service the what-if starts from: the same defaults as the Decision summary page.
 SLOTS, BEDS, BACKLOG, REFERRALS = 5, 10, 60, 6.0
@@ -59,9 +60,43 @@ def base_params() -> cp.PolicyParams:
         beds=BEDS,
         weekly_referrals=REFERRALS,
         initial_backlog=BACKLOG,
-        deterioration_rates=(0.0, 0.0, 0.0, 0.0),
+        deterioration_rates=parameter_sets.LITERATURE.cicu_rates(),  # R023: published figures only
         casemix=mix.casemix,
     )
+
+
+# Where the "children who got worse" figure comes from (R023). The model's default published set, see
+# docs/sanity-check.md. These are untreated hazards: an upper bound for a child who is managed while waiting.
+DETERIORATION_SOURCE = (
+    "Children who got worse: weekly risks of 2.34% (complete AVSD), 1.23% (large VSD) and 0.80% (tetralogy of Fallot) "
+    "from Saxena et al. 2019, doi:10.4103/apc.apc_32_19. They are risks without treatment, so the real figure for a "
+    "child who is managed while waiting is lower. A clinician must check it."
+)
+
+
+@dataclass(frozen=True)
+class Scenario:
+    """ONE scenario for every screen: the same service, change, seeds, length and number of futures.
+
+    Screen 4 (what it means) and screen 5 (what can we do) both run from this object, so the same quantity
+    is the same number on both.
+    """
+
+    params: cp.PolicyParams
+    events: tuple[cp.Event, ...]
+    weeks: int = whatif.DEFAULT_WEEKS
+    runs: int = whatif.DEFAULT_RUNS
+    seed0: int = whatif.SEED0
+
+    def run(self) -> whatif.WhatIfResult:
+        return whatif.run_whatif(self.params, self.events, self.weeks, self.runs, self.seed0)
+
+    def recover(self) -> whatif_recommend.Recovery:
+        return whatif_recommend.recover(self.params, self.events, self.weeks, self.runs, self.seed0)
+
+
+def scenario_for(a: Answers) -> Scenario:
+    return Scenario(base_params(), (make_event(a),))
 
 
 def make_event(a: Answers) -> cp.Event:
@@ -167,3 +202,40 @@ def make_entry(
         level=level,
         review_date=review_date,
     )
+
+
+def _measure_line(m: dict) -> str:
+    return (
+        f"  - {m['measure']}: normal case {m['normal_median']:g}, your case {m['case_median']:g}, "
+        f"change {m['change_median']:+g} (range {m['change_p5']:+g} to {m['change_p95']:+g}), {m['verdict']}"
+    )
+
+
+def print_text(r: dict) -> str:
+    """One-page print view in plain words. No raw JSON: events become a sentence, results become lines."""
+    tested = []
+    for e in json.loads(r["events_json"]):
+        lo = e.get("duration_weeks", 1)
+        top = e.get("duration_max_weeks") or lo
+        tested.append(sentence(Answers(e["kind"], e["amount"], e.get("start_week", 0), lo, top, e.get("urgency"))))
+    res = json.loads(r["results_json"])
+    lines = [
+        f"Consultation {r['id']} ({r['utc_time']})",
+        f"Asked by: {r['asker']}",
+        f"Question: {r['question']}",
+        f"Kind of decision: {r['level']}",
+        "What was tested: " + (" ".join(tested) if tested else "not recorded"),
+    ]
+    if res.get("measures"):
+        lines.append(f"What the test showed (median of {res.get('runs')} possible futures over {res.get('weeks')} weeks):")
+        lines += [_measure_line(m) for m in res["measures"]]
+    lines += [
+        f"Decision: {r['decision_choice']} (by {r['decision_by']})",
+        f"Reason: {r['decision_why']}",
+        f"Review date: {r['review_date'] or 'none set'}",
+        f"Corrects entry: {r['corrects_id'] if r['corrects_id'] is not None else 'none'}",
+        f"Model version {r['model_version']}, {r['parameter_set']} figures, seeds {r['seeds']}.",
+        "",
+        DISCLAIMER,
+    ]
+    return "\n".join(lines)
