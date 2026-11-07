@@ -151,7 +151,7 @@ def _cells(a: AppTest, first: str) -> list[str]:
 
 
 def test_same_scenario_same_number_on_screen_4_and_5(tmp_path, monkeypatch) -> None:
-    """CEO 7 Nov: a product that contradicts itself is not reliable. Real recovery search, no fake."""
+    """A product that contradicts itself is not reliable. Real recovery search, no fake."""
     monkeypatch.setenv("CARDIAC_WHATIF_LOG", str(tmp_path / "log.sqlite"))
     a = _open(PAGE)
     _to_screen4(a)

@@ -1,6 +1,6 @@
 # What-if consulting mode: SPEC (week of 2 Nov 2026; build starts Mon 9 Nov)
 
-Status: spec only. Idea: `_Housekeeping/ideas/2026-10-04_cardiac-what-if-consult.md` (CEO 4 Oct; yes 6 Nov).
+Status: spec only.
 
 Engine today (read, v2.2.3): `src/cardiac_capacity/cicu_policy.py` (`PolicyParams`, `run_metrics`, `replicate`, seeded streams, `start_mode="today"` with `occupied_now`) and `recommend_cicu.py` (`evaluate_plan`, `recommend`, `plain_words`, seed bands SEED_SELECT / SEED_VALIDATE / SEED_CHECK). Parameters are fixed for the whole run. A shock that starts in week X needs a time-varying hook. This is the one engine change.
 
@@ -47,15 +47,15 @@ Local SQLite file, append-only (corrections are new rows, never edits; no UPDATE
 Real patient data; forecasts; clinical advice; free-text AI answers; the local assistant (own card later); editing past log rows; push or hosting; cloud or login.
 
 ## 8. Licence and disclaimer lines
-- Code AGPL-3.0, commercial licence on request. Content CC BY-NC. Independence and data notice as in OPERATING_MODEL §5.
+- Code AGPL-3.0, commercial licence on request. Content CC BY-NC. Independence and data notice as in the README.
 - "Research and demonstration software. Not a medical device and not intended for clinical decision-making, diagnosis or treatment. Uses synthetic data only. Results are ranges of possible futures, not a forecast."
 - Shown on screen 4, in the export and in the README section.
 
 ## 9. Brain (searched 6 Nov)
-The brain MCP is not reachable from a subagent. A command-line search of `refs_books` found nothing specific on what-if or scenario methods or bed blocking. One loose hit: `refs_books/sources/acute-care-cardiology-early-discharge-2022` (early discharge and length of stay). Gaps: scenario and stress testing for hospital capacity; delayed discharge (bed blocking); decision-log and audit practice; run-chart rules (Anhøj, already open as C6b intake). ED to run `brain_search` in the main session before station 1 and log gaps to `brain_gaps/`. No citations invented.
+No published source specific to what-if or scenario methods or bed blocking was found. One loose related source: early discharge and length of stay in acute cardiology (2022). Gaps: scenario and stress testing for hospital capacity; delayed discharge (bed blocking); decision-log and audit practice; run-chart rules (Anhøj). No citations invented.
 
 ## 10. Blocker
-C6b is "done, awaiting ED sign-off" (board row C6b). The brain intake (open-access papers, CEO approves downloads) is still open (board row "C6b brain intake"). Station 1 does not depend on new defaults (events default to empty), so the build can start; later default changes flow through.
+Run-chart rules work (C6b) is done. Further open-access literature is still to be collected. Station 1 does not depend on new defaults (events default to empty), so the build can start; later default changes flow through.
 
 ## 11. Build stations (each at most 1% of a weekly budget, max 40 calls)
 | # | Output | Check command (run in cardiac_model) | Cost |
@@ -74,4 +74,4 @@ Total: about 5.1% of a weekly budget, plus about 0.5% for ED review and checks, 
 - `or-ms-methods-orthopaedic-care-review` (Hulshof et al. 2012 taxonomy): label each what-if as strategic, tactical or operational in the decision log (station 3).
 - `kidney-waiting-list-expansion-scenarios`: example of reporting scenario results as median (IQR) wait; copy this reporting style (station 2).
 - `publisher-check-morris-2019-simulation-studies` (ADEMP): state aims, data, estimands, methods and performance for the stress runs (station 6).
-- Gap: no source on decision-log practice for managers. Add to brain_gaps; it does not block station 1.
+- Gap: no published source on decision-log practice for managers was found. It does not block station 1.
