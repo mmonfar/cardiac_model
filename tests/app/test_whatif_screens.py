@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
+from streamlit.util import calc_hash
 
 from cardiac_capacity import decision_log, whatif_recommend
 from cardiac_capacity_planner import whatif_ui as wu
@@ -42,7 +43,11 @@ def at(tmp_path, monkeypatch) -> AppTest:
 def _open(page: str) -> AppTest:
     a = AppTest.from_file(APP, default_timeout=180)
     a.run()
-    a.switch_page(f"views/{page.replace('-', '_')}.py").run()
+    a.switch_page(f"views/{page.replace('-', '_')}.py")
+    # AppTest hashes the file name ("whatif log"); the app routes by url_path ("whatif-log").
+    # They differ when the url_path has a dash, so set the hash the app really uses.
+    a._page_hash = calc_hash(page)
+    a.run()
     return a
 
 
