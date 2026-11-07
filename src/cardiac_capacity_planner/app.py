@@ -24,6 +24,8 @@ VIEWS = Path(__file__).resolve().parent / "views"
 PAGES = [
     st.Page(VIEWS / "summary.py", title="Decision summary", url_path="summary", default=True),
     st.Page(VIEWS / "diagnosis.py", title="By diagnosis", url_path="diagnosis"),
+    st.Page(VIEWS / "whatif.py", title="What if something changes?", url_path="whatif"),
+    st.Page(VIEWS / "whatif_log.py", title="Past what-if consultations", url_path="whatif-log"),
     st.Page(VIEWS / "assumptions.py", title="Assumptions and sources", url_path="assumptions"),
 ]
 if os.environ.get("CARDIAC_LEGACY_V21") == "1":  # noqa: E501  v2.1 detail pages, parity tests only
