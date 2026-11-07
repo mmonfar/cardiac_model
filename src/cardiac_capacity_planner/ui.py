@@ -59,7 +59,7 @@ CSS = """
                 color: #17242B; }
   .ccp-kpi .t { font: 500 14px var(--mm-font-label); letter-spacing: 0.14em;
                 text-transform: uppercase; color: #008080; margin-top: 4px; }
-  .ccp-kpi .c { font-size: 14px; color: #5B6B73; margin-top: 4px; line-height: 1.35; }
+  .ccp-kpi .c { font-size: 14px; color: rgba(23,36,43,0.62); margin-top: 4px; line-height: 1.35; }
   .ccp-table { width: 100%; border-collapse: collapse; background: #FFFFFF;
                border: 1px solid #E3E5E4; font-size: 14px; margin-bottom: 8px; }
   .ccp-table th { text-align: left; font: 500 14px var(--mm-font-label); letter-spacing: 0.12em;
@@ -77,10 +77,10 @@ CSS = """
               margin-bottom: 18px; }
   .ccp-gaps li { margin: 6px 0; font-size: 14px; line-height: 1.45; }
   .mm-label-sm, .mm-tick, [data-testid="stCaptionContainer"] { font-size: 14px !important; }
-  .ccp-quiet { color: #5B6B73; font-size: 14px; margin: -8px 0 12px; }
+  .ccp-quiet { color: rgba(23,36,43,0.62); font-size: 14px; margin: -8px 0 12px; }
   @media (max-width: 700px) {
     [data-testid="stExpandSidebarButton"] { width: auto !important; padding: 4px 12px !important;
-        border: 1px solid #17242B !important; border-radius: 4px; background: #FFFFFF !important; }
+        border: 1px solid #17242B !important; border-radius: 0; background: #FFFFFF !important; }
     [data-testid="stExpandSidebarButton"]::after { content: "Change inputs"; font-size: 14px;
         font-weight: 700; color: #17242B; margin-left: 8px; }
   }
@@ -115,6 +115,8 @@ CSS = """
 
 
 WORDMARK = Path(__file__).resolve().parent / "brand" / "wordmark.svg"
+# the mmonfar. square inside wordmark.svg (teal #008080); sidebar_brand checks it is present
+WORDMARK_SQUARE = '<rect x="4203.0" y="0" width="110.0" height="110.0" fill="#008080"/>'
 
 
 def sidebar_brand() -> None:
@@ -122,6 +124,9 @@ def sidebar_brand() -> None:
 
     Never repeat the wordmark in page content or the headline bar (tests pin this).
     """
+    svg = WORDMARK.read_text(encoding="utf-8")
+    if WORDMARK_SQUARE not in svg:  # the teal square must stay the brand square
+        raise ValueError("wordmark.svg lost its teal square")
     st.logo(str(WORDMARK), size="large")
 
 
