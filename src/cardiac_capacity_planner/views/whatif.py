@@ -52,11 +52,11 @@ def to_check(a: wu.Answers) -> None:
     S["wi_step"] = 3
 
 
-def row(label: str, share: float, worse: float, end: float, pick: bool = False) -> str:
+def row(label: str, safe: bool, worse: float, end: float, pick: bool = False) -> str:
     worse = round(worse)
     return (
         f'<tr class="{"pick" if pick else ""}"><td class="opt" data-label="Option">{escape(label)}</td>'
-        f'<td class="num" data-label="Meets every condition">{share:.0%} of futures</td>'
+        f'<td class="num" data-label="Safe here?">{"Yes" if safe else "No"}</td>'
         f'<td class="num" data-label="Children who get worse (typical)">{worse:.0f}</td>'
         f'<td class="num" data-label="List at the end (typical)">{end:.0f}</td></tr>'
     )
@@ -180,7 +180,7 @@ elif step == 5 and answers:
             f'<div class="because">{escape(rec.message)}</div></div>',
             unsafe_allow_html=True,
         )
-        rows = "".join(row(f"{o.rank}. {wu.plan_label(o.slots, o.surge)}", o.share_ok, o.worsen_p50, o.list_end_p50, o.rank == 1) for o in rec.options)
+        rows = "".join(row(f"{o.rank}. {wu.plan_label(o.slots, o.surge)}", o.safe, o.worsen_p50, o.list_end_p50, o.rank == 1) for o in rec.options)
     else:
         st.markdown(
             f'<div class="ccp-do"><div class="mm-label-sm">Result</div><div class="headline">No safe plan found.</div>'
@@ -189,17 +189,17 @@ elif step == 5 and answers:
         )
         be = rec.best_effort
         if be is not None:
-            rows = row(f"Closest: {wu.plan_label(be.slots, be.surge)}", be.share_ok, be.worsen_p50, be.list_end_p50, True)
+            rows = row(f"Closest: {wu.plan_label(be.slots, be.surge)}", be.safe, be.worsen_p50, be.list_end_p50, True)
     dn = rec.do_nothing
     # "Keep the current plan" is the very run shown on screen 4 ("your case"): same numbers, read from that result.
     rows += row(
         f"Keep the current plan ({wu.plan_label(dn.slots, dn.surge)})",
-        dn.share_ok,
+        dn.safe,
         res.get("det_events").scenario.p50,
         res.get("list_end").scenario.p50,
     )
     st.markdown(
-        '<table class="ccp-table"><thead><tr><th>Option</th><th>Meets every condition</th><th>Children who get worse (typical)</th><th>List at the end (typical)</th></tr></thead>'
+        '<table class="ccp-table"><thead><tr><th>Option</th><th>Safe here?</th><th>Children who get worse (typical)</th><th>List at the end (typical)</th></tr></thead>'
         f"<tbody>{rows}</tbody></table>",
         unsafe_allow_html=True,
     )
