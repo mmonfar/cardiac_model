@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 ### Added
 - Engine only (what-if station 1): `Event` type and `PolicyParams.events` (block beds, cut theatre, extra referrals; optional duration range). Default is empty, so every result is unchanged; the default-run cache was rebuilt (code fingerprint) with identical numbers.
 
+- Stress-test library (what-if station 6): five synthetic presets (`stress_library.py`), ADEMP-style report text with ranges, README section with numbers copied from a run. Presets are separate data; no default result changes.
+
 ## [2.2.3] - 2026-10-14
 
 ### Fixed

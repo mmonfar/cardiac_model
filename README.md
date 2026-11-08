@@ -27,6 +27,20 @@ On a phone: <img src="docs/screenshots/readme_phone.png" alt="Same screen on a p
 
 *Screenshot with synthetic data.*
 
+## What-if stress tests
+
+Five ready-made shocks, all synthetic, from `cardiac_capacity.stress_library`. Each runs the normal case and the shock on the same 30 seeds for 26 weeks, from the default example service (5 theatre slots, 10 beds, 60 waiting, 6 referrals a week). Aims: show how far a shock moves the waiting list. Data: synthetic service, published-literature defaults. Estimand: shock minus normal case, per seed. Methods: 30 simulated runs, unknown lengths drawn from their range. Performance: median and 5th to 95th percentile band. Ranges, not a forecast. Numbers below are copied from a run (children, difference at week 26).
+
+| Shock | Waiting list: extra children | Children who got worse: extra |
+|---|---|---|
+| Three beds blocked from week 2, for 2 to 6 weeks | 7.0 (0.8 to 14.5) | 1.0 (-0.5 to 4.1) |
+| Anaesthetist resigns: 3 slots for 6 weeks from week 1 | 6.0 (0.5 to 11.5) | 1.0 (0.0 to 3.1) |
+| Outbreak: 4 beds closed for 2 to 4 weeks from week 2 | 6.0 (-1.5 to 14.7) | 1.0 (-0.5 to 3.0) |
+| Referral surge: 3 urgent cases a week for 4 weeks | 13.5 (2.5 to 23.5) | 2.0 (0.0 to 4.5) |
+| Theatre closed for 2 weeks from week 3 | 6.5 (-0.5 to 11.5) | 1.0 (-0.5 to 3.5) |
+
+Presets are separate data; no event is on by default, so earlier results are unchanged.
+
 ## How to run
 
 Python 3.11 or newer.
