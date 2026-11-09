@@ -54,7 +54,11 @@ def name(page: str, width: int, kind: str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--python", default=sys.executable)
+    ap.add_argument("--out", default=str(OUT), help="output folder (default docs/screenshots/v2.2)")
+    ap.add_argument("--widths", default="", help="comma list, e.g. 390,1280 (default all)")
     args = ap.parse_args()
+    out = Path(args.out)
+    widths = {w: h for w, h in WIDTHS.items() if not args.widths or str(w) in args.widths.split(",")}
     port = free_port()
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
     server = subprocess.Popen(
@@ -65,11 +69,11 @@ def main() -> None:
     try:
         base = f"http://127.0.0.1:{port}/"
         wait_up(base)
-        OUT.mkdir(parents=True, exist_ok=True)
+        out.mkdir(parents=True, exist_ok=True)
         with sync_playwright() as p:
             browser = p.chromium.launch()
             for path, page_name in PAGES.items():
-                for width, height in WIDTHS.items():
+                for width, height in widths.items():
                     page = browser.new_page(viewport={"width": width, "height": height})
                     page.goto(base + path)
                     page.wait_for_selector(".ccp-band", timeout=SETTLE_S * 1000)
@@ -83,7 +87,7 @@ def main() -> None:
                     ).count()
                     if logos != 1:
                         raise SystemExit(f"{page_name} at {width}px shows {logos} logos, expected 1")
-                    page.screenshot(path=OUT / name(page_name, width, "first-screen"))
+                    page.screenshot(path=out / name(page_name, width, "first-screen"))
                     # Streamlit scrolls inside its main panel, so grow the viewport to the
                     # panel's height instead of relying on full_page.
                     tall = page.evaluate(
@@ -93,7 +97,7 @@ def main() -> None:
                     )
                     page.set_viewport_size({"width": width, "height": max(height, int(tall))})
                     page.wait_for_timeout(1500)
-                    page.screenshot(path=OUT / name(page_name, width, "full"))
+                    page.screenshot(path=out / name(page_name, width, "full"))
                     print("captured", page_name, width)
                     page.close()
             browser.close()
